@@ -717,6 +717,16 @@
                                                 <c:TrackedText x:Name="ChapterText" Margin="8,0,0,0" VerticalAlignment="Center" Tracking="0.09" Text="ADD AFTER CAPTURE" />
                                             </StackPanel>
                                         </Button>
+                                        <StackPanel x:Name="ChapterProgressPanel" Margin="0,12,0,0" Visibility="Collapsed">
+                                            <Grid>
+                                                <c:TrackedText Style="{StaticResource SmallLabel}" Tracking="0.12" Foreground="{StaticResource B.Accent}" Text="FINDING SCENES" />
+                                                <TextBlock x:Name="ChapterProgressText" Style="{StaticResource MonoValue}" FontSize="11" HorizontalAlignment="Right" />
+                                            </Grid>
+                                            <ProgressBar x:Name="ChapterProgressBar" Style="{StaticResource StepProgress}" Margin="0,7,0,0"
+                                                         AutomationProperties.Name="Scene scan progress" />
+                                            <TextBlock x:Name="ChapterTimeLeft" Margin="0,6,0,0" Style="{StaticResource MonoNote}" FontSize="11"
+                                                       LineHeight="15" Foreground="{StaticResource B.TextDim}" Visibility="Collapsed" />
+                                        </StackPanel>
                                         <TextBlock x:Name="ChapterNote" Margin="2,10,0,0" Style="{StaticResource MonoNote}" TextWrapping="Wrap"
                                                    FontSize="11" LineHeight="17" Foreground="{StaticResource B.TextDim}" />
                                     </StackPanel>
@@ -770,6 +780,16 @@
                                                 <c:TrackedText x:Name="ConvertText" Margin="8,0,0,0" VerticalAlignment="Center" Tracking="0.09" Text="CONVERT AFTER CAPTURE" />
                                             </StackPanel>
                                         </Button>
+                                        <StackPanel x:Name="ConvertProgressPanel" Margin="0,12,0,0" Visibility="Collapsed">
+                                            <Grid>
+                                                <c:TrackedText Style="{StaticResource SmallLabel}" Tracking="0.12" Foreground="{StaticResource B.Accent}" Text="CONVERTING" />
+                                                <TextBlock x:Name="ConvertProgressText" Style="{StaticResource MonoValue}" FontSize="11" HorizontalAlignment="Right" />
+                                            </Grid>
+                                            <ProgressBar x:Name="ConvertProgressBar" Style="{StaticResource StepProgress}" Margin="0,7,0,0"
+                                                         AutomationProperties.Name="Conversion progress" />
+                                            <TextBlock x:Name="ConvertTimeLeft" Margin="0,6,0,0" Style="{StaticResource MonoNote}" FontSize="11"
+                                                       LineHeight="15" Foreground="{StaticResource B.TextDim}" Visibility="Collapsed" />
+                                        </StackPanel>
                                         <TextBlock x:Name="ConvertNote" Margin="2,10,0,0" Style="{StaticResource MonoNote}" TextWrapping="Wrap"
                                                    FontSize="11" LineHeight="17" Foreground="{StaticResource B.TextDim}" />
                                     </StackPanel>

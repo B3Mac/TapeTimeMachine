@@ -552,6 +552,14 @@ public partial class MainWindow : Window
     {
         if (!_capturing) return;
         RecText.Text = $"REC {FormatClock(p.Elapsed)}";
+        // Warn once the picture has been blank for 30 seconds, counting down to the automatic stop.
+        if (p.Blank >= TimeSpan.FromSeconds(30))
+        {
+            var left = TransportController.BlankStopAfter - p.Blank;
+            StorageNote.Text = $"Blank tape · stops in {Math.Max(0, (int)Math.Ceiling(left.TotalSeconds))} s if no picture returns";
+            StorageNote.Foreground = Res("B.Yellow");
+            return;
+        }
         string dropped = p.DroppedFrames == 0 ? "No dropped frames" : $"{p.DroppedFrames:N0} dropped frames";
         StorageNote.Text = $"This capture: {FormatBytes(p.Bytes)} · {dropped}";
         StorageNote.Foreground = p.DroppedFrames == 0 ? (Brush)new BrushConverter().ConvertFrom("#6EC1D0E5")! : Res("B.Yellow");
@@ -612,8 +620,9 @@ public partial class MainWindow : Window
             List<Chapter> chapters = ChapterWriter.ReadMatroskaXml(chapterFile);
             if (_settings.AddChapters && chapters.Count == 0)
             {
-                Status("Finding scenes… 0%");
-                var scan = await SceneScanner.ScanAsync(capturedPath, new Progress<double>(p => Status($"Finding scenes… {p * 100:0}%")), ct);
+                var scanProgress = StepProgress(ChapterProgressPanel, ChapterProgressBar, ChapterProgressText, ChapterTimeLeft, "Finding scenes", Status);
+                var scan = await SceneScanner.ScanAsync(capturedPath, scanProgress, ct);
+                ChapterProgressPanel.Visibility = Visibility.Collapsed;
                 if (scan.Ok)
                 {
                     chapters = ChapterWriter.FromScenes(scan.SceneStarts);
@@ -627,7 +636,7 @@ public partial class MainWindow : Window
             {
                 Status("Cleaning audio… 0%");
                 var result = await PostProcess.CleanAudioAsync(capturedPath, _settings.AudioPlugins.ToList(),
-                    new Progress<double>(p => Status($"Cleaning audio… {p * 100:0}%")));
+                    new Progress<double>(p => Status($"Cleaning audio… {p * 100:0}%")), chapters);
                 ct.ThrowIfCancellationRequested();
                 if (result.Ok && result.OutputPath is string cleaned)
                 {
@@ -639,9 +648,10 @@ public partial class MainWindow : Window
 
             if (_settings.ConvertAfterCapture)
             {
-                Status("Converting… 0%");
+                var convertProgress = StepProgress(ConvertProgressPanel, ConvertProgressBar, ConvertProgressText, ConvertTimeLeft, "Converting", Status);
                 var result = await Converter.ConvertAsync(current, Converter.PresetById(_settings.ConvertPreset),
-                    new ConvertOptions { Chapters = chapters }, new Progress<double>(p => Status($"Converting… {p * 100:0}%")), ct);
+                    new ConvertOptions { Chapters = chapters }, convertProgress, ct);
+                ConvertProgressPanel.Visibility = Visibility.Collapsed;
                 if (result.Ok && result.OutputPath is string converted)
                 {
                     show = converted;
@@ -671,6 +681,7 @@ public partial class MainWindow : Window
             _postCts = null;
             cts.Dispose();
             ProcessFileButton.IsEnabled = true;
+            ChapterProgressPanel.Visibility = ConvertProgressPanel.Visibility = Visibility.Collapsed;
             SetPostStatus(null);
         }
 
@@ -679,6 +690,49 @@ public partial class MainWindow : Window
             ShowToast(done.Count > 0 ? $"{problem} Finished before that: {finished}." : problem, ToastKind.Warning);
         else if (done.Count > 0)
             ShowToast($"{Path.GetFileName(capturedPath)}: {finished}.", ToastKind.Success, "Show in folder", () => ShowInExplorer(show));
+    }
+
+    /// <summary>
+    /// Shows a step's progress bar in its card (scrolled into view), with the percentage and time left,
+    /// and mirrors the percentage in the panel's status line. The caller hides the bar when the step ends.
+    /// </summary>
+    private Progress<double> StepProgress(FrameworkElement panel, ProgressBar bar, TextBlock percentText, TextBlock timeLeft,
+        string verb, Action<string> status)
+    {
+        bar.Value = 0;
+        percentText.Text = "0%";
+        timeLeft.Text = "";
+        timeLeft.Visibility = Visibility.Collapsed;
+        panel.Visibility = Visibility.Visible;
+        status($"{verb}… 0%");
+        // Scroll the whole card (bar and the note under it) into view, not just the bar's top edge.
+        var card = panel.Parent as FrameworkElement ?? panel;
+        Dispatcher.InvokeAsync(() => card.BringIntoView(), DispatcherPriority.Loaded);
+
+        var clock = Stopwatch.StartNew();
+        return new Progress<double>(p =>
+        {
+            if (!_postRunning) return;
+            bar.Value = p;
+            string percent = $"{p * 100:0}%";
+            percentText.Text = percent;
+            if (TimeLeft(p, clock.Elapsed) is string left)
+            {
+                timeLeft.Text = char.ToUpperInvariant(left[0]) + left[1..];
+                timeLeft.Visibility = Visibility.Visible;
+            }
+            status($"{verb}… {percent}");
+        });
+    }
+
+    /// <summary>"about 6 min left", once there's enough progress to guess from.</summary>
+    private static string? TimeLeft(double fraction, TimeSpan elapsed)
+    {
+        if (fraction < 0.02 || fraction >= 1 || elapsed < TimeSpan.FromSeconds(5)) return null;
+        var left = TimeSpan.FromSeconds(elapsed.TotalSeconds * (1 - fraction) / fraction);
+        if (left < TimeSpan.FromMinutes(1)) return "under a minute left";
+        if (left < TimeSpan.FromHours(1)) return $"about {Math.Ceiling(left.TotalMinutes):0} min left";
+        return $"about {(int)left.TotalHours} h {left.Minutes} min left";
     }
 
     /// <summary>Shows what post-processing is doing at the top of the panel; null puts the description back.</summary>
@@ -813,8 +867,10 @@ public partial class MainWindow : Window
             _hasFfmpeg ? "ADD AFTER CAPTURE" : "FFMPEG NOT INSTALLED", "WILL ADD AFTER CAPTURE", "Geo.Chapters");
         ChapterButton.IsEnabled = _hasFfmpeg;
         ChapterNote.Text = !_hasFfmpeg ? FfmpegTools.MissingMessage
-            : on ? "Scans the finished capture (about a minute per tape) and saves the chapters in a file beside it."
-            : "Off. Captures are saved without chapters.";
+            : !on ? "Off. Captures are saved without chapters."
+            : _settings.ConvertAfterCapture
+                ? "Scans the finished capture (about a minute per tape). The chapters go inside the converted copy, where Jellyfin shows them."
+                : "Scans the finished capture (about a minute per tape). AVI files can't hold chapters, so Jellyfin won't see them: turn on Convert to put them inside a copy.";
         AutomationProperties.SetName(ChapterButton, on ? "Don't add chapters after capture" : "Add chapters after capture");
     }
 
@@ -837,6 +893,7 @@ public partial class MainWindow : Window
             : on ? $"{preset.Description} The capture itself is kept."
             : preset.Description;
         AutomationProperties.SetName(ConvertButton, on ? "Don't convert after capture" : "Convert after capture");
+        UpdateChapterUi(); // its note depends on whether a converted copy will carry the chapters
     }
 
     private void ConvertToggle_Click(object sender, RoutedEventArgs e)

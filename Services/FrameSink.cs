@@ -21,8 +21,21 @@ public sealed class FrameSink : ISampleGrabberCB
     private bool _bottomUp;
     private byte[]? _full, _glass, _ambient;
     private bool _fresh, _ambientFresh;
-    private long _lastFrameTicks;
+    private long _lastFrameTicks, _lastPictureTicks;
     private int _frameCount;
+
+    /// <summary>
+    /// Brightness spread (standard deviation, 0..255) below which a frame counts as blank: one flat colour, such as
+    /// the grey, blue or black a camcorder shows for unrecorded tape. Measured on the 1/8-size copy. On real Digital8
+    /// captures, blank tape measured exactly 0.0 on every frame, while the darkest real picture sampled was 4.4.
+    /// </summary>
+    public const double BlankSpread = 1.0;
+
+    /// <summary>Environment.TickCount64 when the last frame with a real picture arrived (0 if none yet).</summary>
+    public long LastPictureTicks => Interlocked.Read(ref _lastPictureTicks);
+
+    /// <summary>Environment.TickCount64 when the last frame of any kind arrived (0 if none yet).</summary>
+    public long LastFrameTicks => Interlocked.Read(ref _lastFrameTicks);
 
     public int Width { get { lock (_gate) return _width; } }
     public int Height { get { lock (_gate) return _height; } }
@@ -50,9 +63,14 @@ public sealed class FrameSink : ISampleGrabberCB
             _fresh = _ambientFresh = false;
         }
         Interlocked.Exchange(ref _lastFrameTicks, 0);
+        Interlocked.Exchange(ref _lastPictureTicks, 0);
     }
 
-    public void Reset() => Interlocked.Exchange(ref _lastFrameTicks, 0);
+    public void Reset()
+    {
+        Interlocked.Exchange(ref _lastFrameTicks, 0);
+        Interlocked.Exchange(ref _lastPictureTicks, 0);
+    }
 
     public int SampleCB(double sampleTime, IMediaSample sample) => 0;
 
@@ -91,8 +109,8 @@ public sealed class FrameSink : ISampleGrabberCB
                     _ambientFresh = true;
                 }
                 _fresh = true;
+                NoteFrame(_glass!);
             }
-            Interlocked.Exchange(ref _lastFrameTicks, Environment.TickCount64);
         }
         catch (Exception ex)
         {
@@ -117,13 +135,47 @@ public sealed class FrameSink : ISampleGrabberCB
                     _ambientFresh = true;
                 }
                 _fresh = true;
+                NoteFrame(_glass!);
             }
-            Interlocked.Exchange(ref _lastFrameTicks, Environment.TickCount64);
         }
         catch (Exception ex)
         {
             Log.Error("Preview frame push failed", ex);
         }
+    }
+
+    private void NoteFrame(byte[] small)
+    {
+        long now = Environment.TickCount64;
+        Interlocked.Exchange(ref _lastFrameTicks, now);
+        if (Spread(small, _width / GlassScale, _height / GlassScale) >= BlankSpread)
+            Interlocked.Exchange(ref _lastPictureTicks, now);
+    }
+
+    /// <summary>
+    /// Standard deviation of brightness across the middle of a top-down BGRA image. The outer eighth on each side
+    /// is skipped: DV frames have black edges and head-switching noise along the bottom even when the tape is blank.
+    /// </summary>
+    internal static double Spread(byte[] bgra, int width, int height)
+    {
+        int x0 = width / 8, x1 = width - x0, y0 = height / 8, y1 = height - y0;
+        double sum = 0, sumSq = 0;
+        int n = 0;
+        for (int y = y0; y < y1; y++)
+        {
+            for (int x = x0; x < x1; x++)
+            {
+                int i = (y * width + x) * 4;
+                if (i + 2 >= bgra.Length) break;
+                double luma = 0.114 * bgra[i] + 0.587 * bgra[i + 1] + 0.299 * bgra[i + 2];
+                sum += luma;
+                sumSq += luma * luma;
+                n++;
+            }
+        }
+        if (n == 0) return 0;
+        double mean = sum / n;
+        return Math.Sqrt(Math.Max(0, sumSq / n - mean * mean));
     }
 
     /// <summary>Box-average downscale of a top-down BGRA buffer.</summary>

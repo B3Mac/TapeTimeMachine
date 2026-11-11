@@ -26,7 +26,8 @@ public sealed record TransportSnapshot(TransportMode Mode, int RawMode, TapeTime
 
 public sealed record CommandResult(bool Ok, string? Message = null);
 
-public sealed record CaptureProgress(TimeSpan Elapsed, long Bytes, int DroppedFrames);
+/// <param name="Blank">How long the picture has been blank (unrecorded tape); the capture stops at <see cref="TransportController.BlankStopAfter"/>.</param>
+public sealed record CaptureProgress(TimeSpan Elapsed, long Bytes, int DroppedFrames, TimeSpan Blank = default);
 
 public sealed record CaptureOutcome(
     bool Ok,
@@ -93,6 +94,10 @@ public sealed class TransportController : IDisposable
     private readonly Stopwatch _captureClock = new();
     private int _notPlayingPolls;
     private bool _captureSawPlaying;
+    private long _captureStartTicks, _captureGrewTicks, _captureBytes;
+
+    /// <summary>A capture stops by itself after this long with no picture: the rest of the tape is blank.</summary>
+    public static readonly TimeSpan BlankStopAfter = TimeSpan.FromMinutes(2);
 
     private readonly Reading _timecode = new("timecode", DvConst.ED_DEVCAP_TIMECODE_READ);
     private readonly Reading _counter = new("counter", DvConst.ED_DEVCAP_RTC_READ);
@@ -679,6 +684,8 @@ public sealed class TransportController : IDisposable
             _captureSawPlaying = _mode == TransportMode.Playing;
             Check(_control.Run());
             _captureClock.Restart();
+            _captureStartTicks = _captureGrewTicks = Environment.TickCount64;
+            _captureBytes = 0;
             Log.Info($"Capture started: {path}");
             return new(true, path);
         }
@@ -766,7 +773,34 @@ public sealed class TransportController : IDisposable
     private void UpdateCapture(TransportMode mode)
     {
         if (_capturePath is null) return;
-        CaptureProgressed?.Invoke(new CaptureProgress(_captureClock.Elapsed, FileLength(_capturePath), ReadDropped()));
+        long bytes = FileLength(_capturePath);
+        if (bytes != _captureBytes)
+        {
+            _captureBytes = bytes;
+            _captureGrewTicks = Environment.TickCount64;
+        }
+        TimeSpan blank = BlankFor();
+        CaptureProgressed?.Invoke(new CaptureProgress(_captureClock.Elapsed, bytes, ReadDropped(), blank));
+
+        // Unrecorded tape shows as a flat grey, blue or black picture (or, on MiniDV, no picture at all).
+        // After two minutes of that the recording is over: stop, and stop the tape so it doesn't play on to the end.
+        if (blank >= BlankStopAfter)
+        {
+            Log.Info($"Picture blank for {blank}; stopping the capture and the tape");
+            var outcome = StopCapture(restartPreview: true);
+            if (mode is TransportMode.Playing && _transport is not null)
+            {
+                try { Log.Info($"Tape stop after blank -> {Hex(_transport.put_Mode(ExtTransportModes.Stop))}"); }
+                catch (Exception ex) { Log.Error("Tape stop after blank", ex); }
+            }
+            CaptureEndedAutomatically?.Invoke(outcome with
+            {
+                Message = outcome.Ok
+                    ? "The tape was blank for 2 minutes, so the capture and the tape stopped. Everything before that was saved."
+                    : "The tape was blank for 2 minutes, so the capture stopped. Nothing was recorded.",
+            });
+            return;
+        }
 
         // Stop on our own when the tape stops, winds or reaches its end, so a forgotten capture doesn't fill
         // the drive. Some camcorders ignore Play over FireWire, so until the tape has played at all we wait
@@ -791,6 +825,20 @@ public sealed class TransportController : IDisposable
             var outcome = StopCapture(restartPreview: true);
             CaptureEndedAutomatically?.Invoke(outcome with { Message = "The drive is almost full, so the capture stopped." });
         }
+    }
+
+    /// <summary>
+    /// How long the capture has gone without a real picture. Zero until the preview has delivered a frame during
+    /// this capture, so a capture without a working preview is never stopped for being "blank".
+    /// </summary>
+    private TimeSpan BlankFor()
+    {
+        long now = Environment.TickCount64;
+        if (Frames.LastFrameTicks < _captureStartTicks) return TimeSpan.Zero;
+        // No preview frames lately but the file is still growing: the preview stalled, not the tape. Don't guess.
+        if (now - Frames.LastFrameTicks > 3000 && now - _captureGrewTicks < 3000) return TimeSpan.Zero;
+        long since = Math.Max(Frames.LastPictureTicks, _captureStartTicks);
+        return TimeSpan.FromMilliseconds(Math.Max(0, now - since));
     }
 
     private static long FileLength(string path)

@@ -48,8 +48,12 @@ public static class PostProcess
         catch { return null; }
     }
 
-    /// <summary>Writes "&lt;name&gt; (clean audio).mkv": the DV video copied as-is, audio through the chosen filters (FLAC, lossless).</summary>
-    public static async Task<Result> CleanAudioAsync(string input, IReadOnlyList<string> pluginNames, IProgress<double>? progress = null)
+    /// <summary>
+    /// Writes "&lt;name&gt; (clean audio).mkv": the DV video copied as-is, audio through the chosen filters (FLAC, lossless),
+    /// and the chapters inside the file so Jellyfin and players show them.
+    /// </summary>
+    public static async Task<Result> CleanAudioAsync(string input, IReadOnlyList<string> pluginNames, IProgress<double>? progress = null,
+        IReadOnlyList<Chapter>? chapters = null)
     {
         string? ffmpeg = FindFfmpeg();
         if (ffmpeg is null) return new(false, Message: "Audio clean-up needs FFmpeg. Install it with: winget install Gyan.FFmpeg");
@@ -70,7 +74,23 @@ public static class PostProcess
             RedirectStandardError = true,
             RedirectStandardOutput = true,
         };
-        foreach (var a in new[] { "-hide_banner", "-nostdin", "-y", "-i", input, "-map", "0:v:0", "-map", "0:a:0",
+        string? metadata = null;
+        if (chapters is { Count: > 0 })
+        {
+            double length = (await FfmpegTools.ProbeAsync(input))?.DurationSeconds ?? 0;
+            var inFile = chapters.Where(c => length <= 0 || c.Start.TotalSeconds < length).ToList();
+            if (inFile.Count > 0)
+            {
+                metadata = Path.Combine(Path.GetTempPath(), $"ttm-chapters-{Guid.NewGuid():N}.txt");
+                ChapterWriter.WriteFfMetadata(metadata, inFile, TimeSpan.FromSeconds(Math.Max(length, inFile[^1].Start.TotalSeconds + 1)));
+            }
+        }
+
+        foreach (var a in new[] { "-hide_banner", "-nostdin", "-y", "-i", input })
+            psi.ArgumentList.Add(a);
+        if (metadata is not null)
+            foreach (var a in new[] { "-i", metadata, "-map_chapters", "1" }) psi.ArgumentList.Add(a);
+        foreach (var a in new[] { "-map", "0:v:0", "-map", "0:a:0",
                      "-c:v", "copy", "-af", string.Join(",", filters), "-c:a", "flac", "-progress", "pipe:1", output })
             psi.ArgumentList.Add(a);
 
@@ -113,6 +133,10 @@ public static class PostProcess
             Log.Error("Audio clean-up", ex);
             TryDelete(output);
             return new(false, Message: $"The audio clean-up couldn't run: {ex.Message}");
+        }
+        finally
+        {
+            if (metadata is not null) TryDelete(metadata);
         }
     }
 

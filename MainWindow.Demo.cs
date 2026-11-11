@@ -45,7 +45,7 @@ public partial class MainWindow
 
         var started = DateTime.Now;
         var random = new Random(7);
-        if (DemoArg("--demo-capturing")) SetCapturing(true);
+        if (DemoArg("--demo-capturing") || DemoArg("--demo-blank")) SetCapturing(true);
         if (DemoArg("--demo-post")) Dispatcher.InvokeAsync(() => PostScroll.ScrollToEnd(), DispatcherPriority.Loaded);
 
         const string processArg = "--demo-process=";
@@ -63,7 +63,9 @@ public partial class MainWindow
             if (_capturing)
             {
                 var elapsed = DateTime.Now - started + TimeSpan.FromMinutes(12);
-                OnCaptureProgress(new CaptureProgress(elapsed, (long)(elapsed.TotalSeconds * 3_600_000), 0));
+                // --demo-blank: as if the last 95 s of tape were blank, to show the auto-stop countdown.
+                var blank = DemoArg("--demo-blank") ? TimeSpan.FromSeconds(95) + (DateTime.Now - started) : TimeSpan.Zero;
+                OnCaptureProgress(new CaptureProgress(elapsed, (long)(elapsed.TotalSeconds * 3_600_000), 0, blank));
             }
         }, Dispatcher);
     }

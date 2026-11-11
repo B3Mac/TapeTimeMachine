@@ -12,10 +12,10 @@ A Windows app for rescuing Hi8, Video8 and Digital8 tapes. Plug a Digital8 camco
 - **Live preview:** decoded from a copy of each DV frame by FFmpeg and deinterlaced. It also shows a real audio level meter.
 - **Capture:**
   - One button starts the tape and records it to a type-2 DV AVI, so the video is never re-encoded.
-  - It never overwrites a file and stops by itself when the tape stops or the drive is nearly full.
+  - It never overwrites a file. It stops by itself when the tape stops, after 2 minutes of blank tape (it stops the tape too), or when the drive is nearly full.
   - It shows elapsed time, file size and dropped frames as it records.
 - **After capture (optional):**
-  - Scene detection that writes chapters.
+  - Scene detection that writes chapters. They're saved beside the capture and put inside any converted or clean-audio copy, which is where Jellyfin reads them (AVI files can't hold chapters).
   - Audio clean-up with FFmpeg filters, written to a separate file so the original AVI is untouched.
   - Conversion to MP4 or MKV.
   - Hand-off to Topaz Video AI.
@@ -58,6 +58,8 @@ Debug builds accept a few switches for working on the app without a camcorder, o
 | Switch | What it does |
 |---|---|
 | `--demo`, `--demo-capturing`, `--demo-missing` | Shows the interface with a generated test picture; never opens the camcorder |
+| `--demo-blank` | Demo capture showing the blank-tape countdown before the automatic stop |
+| `--demo-process=<file>` | Runs post-processing on `<file>` with Convert switched on for that run |
 | `--selftest=<folder>` | Plays, pauses and records a 10-second test capture into `<folder>`, then puts the tape back as it was |
 | `--selftest=<folder> --selftest-steps=play:5000,capture:5000` | Runs a custom list of steps instead; every step is written to the log |
 
