@@ -1,5 +1,8 @@
 # Tape Time Machine
 
+![Tape Time Machine main screen: capture setup on the left, the live tape picture with play and capture controls in the middle, post-processing on the right](docs/main-screen.png)
+<sub>Shown in demo mode with a generated test picture.</sub>
+
 A Windows app for rescuing Hi8, Video8 and Digital8 tapes. Plug a Digital8 camcorder into the PC over FireWire, press **Capture**, and it records the tape exactly as the camcorder sends it (DV, no re-encoding). It is a modern replacement for WinDV and Scenalyzer Live, aimed at people who just want their family tapes saved.
 
 ## What it does

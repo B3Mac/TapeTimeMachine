@@ -39,7 +39,7 @@ public partial class MainWindow
             toneHandle.Free();
         };
 
-        OnConnectionChanged(new ConnectionInfo(ConnectionState.Connected, "Sony DV Camcorder (demo)",
+        OnConnectionChanged(new ConnectionInfo(ConnectionState.Connected, "Demo camcorder",
             PreviewAvailable: true, CaptureAvailable: true));
         OnSnapshot(new TransportSnapshot(TransportMode.Playing, 0, new Models.TapeTime(0, 18, 24, 12), null, true));
 
