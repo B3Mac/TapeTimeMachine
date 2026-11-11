@@ -14,6 +14,9 @@ A Windows app for rescuing Hi8, Video8 and Digital8 tapes. Plug a Digital8 camco
   - One button starts the tape and records it to a type-2 DV AVI, so the video is never re-encoded.
   - It never overwrites a file. It stops by itself when the tape stops, after 2 minutes of blank tape (it stops the tape too), or when the drive is nearly full.
   - It shows elapsed time, file size and dropped frames as it records.
+  - **MP4 live convert** (in Save To) also makes an MP4 while the tape plays, next to the untouched AVI. The MP4 has one frame per field (59.94 fps), square pixels, H.264 High and AAC sound, so it plays directly in Jellyfin's web app on iPhones, Android phones and browsers. When the tape ends it's saved within a few minutes, before anything else runs, and chapters are added afterwards. If the live MP4 ever misses frames, it's made from the AVI instead.
+  - **Delete AVI after** (with MP4 live convert, off by default) deletes the AVI once the MP4 has been checked to be the whole tape. Anything doubtful keeps the AVI.
+- **Mute:** the speaker button by the level meter (or M) silences the tape on this PC's speakers. Captures still record the sound.
 - **After capture (optional):**
   - Scene detection that writes chapters. They're saved beside the capture and put inside any converted or clean-audio copy, which is where Jellyfin reads them (AVI files can't hold chapters).
   - Audio clean-up with FFmpeg filters, written to a separate file so the original AVI is untouched.
@@ -60,6 +63,7 @@ Debug builds accept a few switches for working on the app without a camcorder, o
 | `--demo`, `--demo-capturing`, `--demo-missing` | Shows the interface with a generated test picture; never opens the camcorder |
 | `--demo-blank` | Demo capture showing the blank-tape countdown before the automatic stop |
 | `--demo-process=<file>` | Runs post-processing on `<file>` with Convert switched on for that run |
+| `--demo-live=<file.avi>` | Feeds a DV capture's frames through MP4 live convert at tape speed, then finishes it; add `--demo-live-skip=90` to test the fallback, or `--demo-stop-after=<seconds>` to press Stop on post-processing |
 | `--selftest=<folder>` | Plays, pauses and records a 10-second test capture into `<folder>`, then puts the tape back as it was |
 | `--selftest=<folder> --selftest-steps=play:5000,capture:5000` | Runs a custom list of steps instead; every step is written to the log |
 

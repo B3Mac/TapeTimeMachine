@@ -37,12 +37,14 @@ public partial class MainWindow : Window
     private readonly bool _hasFfmpeg = FfmpegTools.FindFfmpeg() is not null;
     private CancellationTokenSource? _postCts;
     private bool _postRunning;
+    private bool _liveMp4Saving; // the live MP4 made during capture hasn't been saved as "Name.mp4" yet
 
     private WriteableBitmap? _video, _glass;
     private ConnectionInfo _connection = new(ConnectionState.Searching);
     private TransportMode _mode = TransportMode.Unknown;
     private bool _connected, _previewAvailable, _captureAvailable;
     private bool _capturing, _captureBusy, _hasPicture;
+    private bool _captureLiveWanted; // MP4 live convert was on when this capture started
     private string? _pluginChoice;
     private string _formatKey = "";
     private float _meterLevel;
@@ -72,6 +74,9 @@ public partial class MainWindow : Window
         UpdateAiUi();
         UpdateChapterUi();
         UpdateConvertUi();
+        UpdateLiveMp4Ui();
+        UpdateMuteUi();
+        if (_settings.MutePreview) _ = _controller.SetPreviewMutedAsync(true); // applied whenever the camcorder connects
 
         var version = Assembly.GetExecutingAssembly().GetName().Version;
         FooterVersion.Text = version is null ? "TAPE TIME MACHINE" : $"TAPE TIME MACHINE v{version.Major}.{version.Minor}.{version.Build}";
@@ -488,12 +493,14 @@ public partial class MainWindow : Window
         string path = AppSettings.UniquePath(folder, name, ".avi");
 
         HideToast();
-        var result = await _controller.StartCaptureAsync(path);
+        bool live = LiveMp4On;
+        var result = await _controller.StartCaptureAsync(path, live);
         if (!result.Ok)
         {
             ShowToast(result.Message ?? "The capture couldn't start.", ToastKind.Error);
             return;
         }
+        _captureLiveWanted = live; // if the live MP4 can't run or falls behind, it's made after the capture instead
         SetCapturing(true);
 
         // One button does it all: start the tape if it isn't already playing.
@@ -533,6 +540,8 @@ public partial class MainWindow : Window
         SummaryLabel.Text = on ? "CAPTURING" : "NOW PLAYING";
         TransportButtons.IsEnabled = _connected && !on;
         FolderButton.IsEnabled = !on;
+        LiveMp4Button.IsEnabled = !on && _hasFfmpeg;
+        DeleteAviButton.IsEnabled = !on;
         FileNameBox.IsReadOnly = on;
         if (on)
         {
@@ -541,7 +550,7 @@ public partial class MainWindow : Window
         }
         else
         {
-            StorageNote.Text = "DV AVI · No re-encoding";
+            StorageNote.Text = IdleStorageNote;
             StorageNote.Foreground = (Brush)new BrushConverter().ConvertFrom("#6EC1D0E5")!;
         }
         UpdateStatusLine();
@@ -561,15 +570,31 @@ public partial class MainWindow : Window
             return;
         }
         string dropped = p.DroppedFrames == 0 ? "No dropped frames" : $"{p.DroppedFrames:N0} dropped frames";
-        StorageNote.Text = $"This capture: {FormatBytes(p.Bytes)} · {dropped}";
-        StorageNote.Foreground = p.DroppedFrames == 0 ? (Brush)new BrushConverter().ConvertFrom("#6EC1D0E5")! : Res("B.Yellow");
+        // The live MP4 only matters here if it fell behind; the AVI is unaffected and the MP4 is then made afterwards.
+        string live = p.LiveMp4Dropped switch
+        {
+            > 0 => " · MP4 fell behind, will finish after capture",
+            0 => " · MP4 live",
+            _ => "",
+        };
+        StorageNote.Text = $"This capture: {FormatBytes(p.Bytes)} · {dropped}{live}";
+        StorageNote.Foreground = p.DroppedFrames == 0 && p.LiveMp4Dropped <= 0
+            ? (Brush)new BrushConverter().ConvertFrom("#6EC1D0E5")!
+            : Res("B.Yellow");
     }
 
     private async void OnCaptureFinished(CaptureOutcome outcome)
     {
         UpdateFreeSpace();
+        bool liveWanted = _captureLiveWanted;
+        _captureLiveWanted = false;
         if (!outcome.Ok)
         {
+            if (outcome.LiveMp4 is LiveMp4Encoder orphan)
+            {
+                orphan.Abort();
+                orphan.Dispose();
+            }
             if (outcome.Message is not null) ShowToast(outcome.Message, ToastKind.Warning);
             return;
         }
@@ -590,20 +615,29 @@ public partial class MainWindow : Window
             _settings.Save();
         }
 
-        await RunPostProcessingAsync(path);
+        await RunPostProcessingAsync(path, outcome.LiveMp4, liveWanted, fromCapture: true, captureDropped: outcome.DroppedFrames);
     }
 
     /// <summary>
     /// Runs the switched-on steps on a finished file: chapters, audio clean-up, a ready-to-watch copy,
     /// then Topaz. The file itself is never changed; every step writes a new file next to it.
     /// </summary>
-    private async Task RunPostProcessingAsync(string capturedPath)
+    /// <param name="live">The MP4 made during the capture (still finishing), if MP4 live convert was on.</param>
+    /// <param name="liveWanted">MP4 live convert was on: make the MP4 now if the live one isn't usable.</param>
+    /// <param name="fromCapture">Wait for an earlier tape's processing instead of refusing.</param>
+    /// <param name="captureDropped">Frames the capture dropped: the AVI fills them in, the live MP4 never gets them.</param>
+    private async Task RunPostProcessingAsync(string capturedPath, LiveMp4Encoder? live = null, bool liveWanted = false, bool fromCapture = false,
+        long captureDropped = 0)
     {
-        if (_postRunning)
+        // The live encoder only needs to write its last few seconds; let it do that straight away.
+        Task<LiveMp4Result>? liveFinish = live?.FinishAsync();
+
+        if (_postRunning && !fromCapture)
         {
             ShowToast("Post-processing is already running. Let it finish, or stop it first.", ToastKind.Warning);
             return;
         }
+        while (_postRunning) await Task.Delay(1000); // a capture finished while the previous tape was still processing
         _postRunning = true;
         ProcessFileButton.IsEnabled = false;
         var cts = _postCts = new CancellationTokenSource();
@@ -613,8 +647,37 @@ public partial class MainWindow : Window
         var done = new List<string>();
         string current = capturedPath, show = capturedPath;
         string? problem = null;
+        string? jellyfinMp4 = null;     // the Jellyfin/phone MP4 once it exists
+        LiveMp4Finish? liveMp4 = null;  // set when that MP4 is the live one
+        string? liveProblem = null;
+        Log.Info($"Post-processing {capturedPath}" + (live is not null ? " (live MP4 to finish)" : ""));
+        _liveMp4Saving = liveFinish is not null;
         try
         {
+            // MP4 live convert: save the MP4 made during capture first, before the slow steps, so the tape's
+            // MP4 exists even if the rest is stopped or the app is closed. Chapters go into it afterwards.
+            if (liveFinish is not null)
+            {
+                Status("Finishing the MP4…");
+                LiveMp4Result liveResult = await liveFinish.WaitAsync(ct);
+                live?.Dispose();
+                ConvertProgressLabel.Text = "SAVING MP4";
+                var finishProgress = StepProgress(ConvertProgressPanel, ConvertProgressBar, ConvertProgressText, ConvertTimeLeft, "Saving the MP4", Status);
+                var finish = await Converter.FinishLiveMp4Async(liveResult, capturedPath, captureDropped, finishProgress, ct);
+                ConvertProgressPanel.Visibility = Visibility.Collapsed;
+                if (finish.Ok && finish.OutputPath is string saved)
+                {
+                    liveMp4 = finish;
+                    jellyfinMp4 = show = saved;
+                }
+                else
+                {
+                    liveProblem = finish.Message ?? "the live MP4 couldn't be finished";
+                    Log.Warn($"Live MP4 not used: {liveProblem}; the AVI will be converted instead");
+                }
+                _liveMp4Saving = false;
+            }
+
             // Chapters. A chapter file that is already there is kept: its chapters may have been named by hand.
             string chapterFile = ChapterWriter.XmlPathFor(capturedPath);
             List<Chapter> chapters = ChapterWriter.ReadMatroskaXml(chapterFile);
@@ -632,6 +695,7 @@ public partial class MainWindow : Window
                 else problem = scan.Message ?? "The scene scan didn't finish.";
             }
 
+            string? cleanedAudio = null;
             if (_settings.AudioPlugins.Count > 0)
             {
                 Status("Cleaning audio… 0%");
@@ -640,14 +704,49 @@ public partial class MainWindow : Window
                 ct.ThrowIfCancellationRequested();
                 if (result.Ok && result.OutputPath is string cleaned)
                 {
-                    current = show = cleaned;
+                    current = show = cleanedAudio = cleaned;
                     done.Add("clean audio");
                 }
                 else problem = result.Message ?? "The audio clean-up didn't finish.";
             }
 
-            if (_settings.ConvertAfterCapture)
+            // MP4 live convert, continued: put the chapters (and cleaned sound) into the saved live MP4, or make
+            // the MP4 from the AVI now if the live one wasn't usable.
+            if (liveMp4 is { OutputPath: string savedMp4 })
             {
+                // Cleaned sound comes from the AVI's timeline, so only use it when the live video lines up frame for frame.
+                string? audioForMp4 = liveMp4.FrameExact ? cleanedAudio : null;
+                if (chapters.Count > 0 || audioForMp4 is not null)
+                {
+                    ConvertProgressLabel.Text = "ADDING CHAPTERS";
+                    var addProgress = StepProgress(ConvertProgressPanel, ConvertProgressBar, ConvertProgressText, ConvertTimeLeft, "Adding chapters to the MP4", Status);
+                    var added = await Converter.AddToMp4Async(savedMp4, liveMp4.DurationSeconds, chapters, audioForMp4, addProgress, ct);
+                    ConvertProgressPanel.Visibility = Visibility.Collapsed;
+                    if (!added.Ok) problem = $"{added.Message} The MP4 is saved without them.";
+                }
+                done.Add("MP4 for Jellyfin");
+            }
+            else if (liveFinish is not null || liveWanted)
+            {
+                ConvertProgressLabel.Text = "MAKING MP4";
+                var convertProgress = StepProgress(ConvertProgressPanel, ConvertProgressBar, ConvertProgressText, ConvertTimeLeft, "Making the MP4", Status);
+                var mp4 = await Converter.ConvertAsync(current, Converter.Jellyfin, new ConvertOptions { Chapters = chapters }, convertProgress, ct);
+                ConvertProgressPanel.Visibility = Visibility.Collapsed;
+                if (mp4.Ok && mp4.OutputPath is string madeMp4)
+                {
+                    jellyfinMp4 = show = madeMp4;
+                    TryDeleteFile(TransportController.LivePartPath(capturedPath)); // the unusable live copy
+                    done.Add(liveProblem is null ? "MP4 for Jellyfin" : $"MP4 for Jellyfin (made after capture: {liveProblem.TrimEnd('.')})");
+                }
+                else problem = mp4.Message ?? "The MP4 couldn't be made.";
+            }
+            bool madeJellyfinMp4 = jellyfinMp4 is not null;
+
+            // The Convert step would make the same Jellyfin MP4 again; skip it then. Other formats still run.
+            bool sameAsLive = madeJellyfinMp4 && Converter.PresetById(_settings.ConvertPreset).Id == Converter.Jellyfin.Id;
+            if (_settings.ConvertAfterCapture && !sameAsLive)
+            {
+                ConvertProgressLabel.Text = "CONVERTING";
                 var convertProgress = StepProgress(ConvertProgressPanel, ConvertProgressBar, ConvertProgressText, ConvertTimeLeft, "Converting", Status);
                 var result = await Converter.ConvertAsync(current, Converter.PresetById(_settings.ConvertPreset),
                     new ConvertOptions { Chapters = chapters }, convertProgress, ct);
@@ -660,15 +759,67 @@ public partial class MainWindow : Window
                 else problem = result.Message ?? "The conversion didn't finish.";
             }
 
+            bool topazUsesAvi = false;
             if (_settings.SendToTopaz)
             {
-                if (PostProcess.OpenInTopaz(current)) done.Add($"opened in Topaz (choose {_settings.TopazModel} there)");
+                if (PostProcess.OpenInTopaz(current))
+                {
+                    done.Add($"opened in Topaz (choose {_settings.TopazModel} there)");
+                    topazUsesAvi = current == capturedPath;
+                }
                 else problem = "Couldn't open Topaz Video AI.";
+            }
+
+            // "Delete AVI after": only for a fresh capture, only when every step worked, and only once the MP4 has
+            // been checked to be the whole tape. Anything doubtful keeps the AVI.
+            if (fromCapture && liveWanted && DeleteAviOn && madeJellyfinMp4 && jellyfinMp4 is not null)
+            {
+                string? keepReason = problem is not null ? "a step above didn't finish"
+                    : topazUsesAvi ? "Topaz Video AI has it open"
+                    : await Mp4ShortfallAsync(capturedPath, jellyfinMp4, liveMp4 is not null ? captureDropped : 0, ct);
+                if (keepReason is null)
+                {
+                    try { File.Delete(capturedPath); }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { keepReason = $"it couldn't be deleted: {ex.Message}"; }
+                }
+                if (keepReason is null)
+                {
+                    TryDeleteFile(ChapterWriter.XmlPathFor(capturedPath)); // the chapters are inside the MP4
+                    Log.Info($"Deleted {capturedPath}; kept {jellyfinMp4}");
+                    done.Add("AVI deleted");
+                }
+                else
+                {
+                    Log.Warn($"Kept {capturedPath}: {keepReason}");
+                    done.Add($"AVI kept ({keepReason})");
+                }
             }
         }
         catch (OperationCanceledException)
         {
             problem = "Post-processing was stopped. The original file is untouched.";
+            if (live is not null && liveFinish is not null && jellyfinMp4 is null && liveProblem is null)
+            {
+                // Never throw away a finished live MP4. The encoder only has a few seconds left to write when the
+                // capture stops; let it finish, then keep the ".part" (a complete, playable MP4) as "Name.mp4".
+                if (!liveFinish.IsCompleted)
+                {
+                    try { await liveFinish.WaitAsync(TimeSpan.FromSeconds(60)); } catch (Exception ex) { Log.Warn($"Live MP4 didn't finish: {ex.Message}"); }
+                }
+                if (liveFinish is { IsCompletedSuccessfully: true, Result.Ok: true })
+                    jellyfinMp4 = Converter.KeepLivePart(TransportController.LivePartPath(capturedPath), capturedPath);
+                else
+                {
+                    if (!liveFinish.IsCompleted) live.Abort();
+                    TryDeleteFile(TransportController.LivePartPath(capturedPath));
+                }
+            }
+            if (jellyfinMp4 is not null)
+            {
+                show = jellyfinMp4;
+                problem = $"Post-processing was stopped. {Path.GetFileName(jellyfinMp4)} is saved and the original file is untouched.";
+            }
+            Log.Warn($"Post-processing stopped: {capturedPath}" + (jellyfinMp4 is not null ? $"; kept {jellyfinMp4}" : ""));
         }
         catch (Exception ex)
         {
@@ -678,6 +829,7 @@ public partial class MainWindow : Window
         finally
         {
             _postRunning = false;
+            _liveMp4Saving = false;
             _postCts = null;
             cts.Dispose();
             ProcessFileButton.IsEnabled = true;
@@ -733,6 +885,28 @@ public partial class MainWindow : Window
         if (left < TimeSpan.FromMinutes(1)) return "under a minute left";
         if (left < TimeSpan.FromHours(1)) return $"about {Math.Ceiling(left.TotalMinutes):0} min left";
         return $"about {(int)left.TotalHours} h {left.Minutes} min left";
+    }
+
+    /// <summary>Null when the MP4 is as long as the AVI (to within a second, or 0.2% of a long tape); otherwise why not.</summary>
+    /// <remarks>
+    /// Frames the capture dropped are filled in the AVI (so its timing stays right) but never reach the live MP4,
+    /// which is shorter by exactly that much; <paramref name="captureDropped"/> allows for it.
+    /// </remarks>
+    private static async Task<string?> Mp4ShortfallAsync(string avi, string mp4, long captureDropped, CancellationToken ct)
+    {
+        MediaInfo? a = await FfmpegTools.ProbeAsync(avi, ct);
+        MediaInfo? m = await FfmpegTools.ProbeAsync(mp4, ct);
+        if (a is null || m is null || a.DurationSeconds <= 0) return "the MP4 couldn't be checked";
+        double droppedSeconds = captureDropped / (a.FramesPerSecond > 0 ? a.FramesPerSecond : 29.97);
+        double diff = a.DurationSeconds - droppedSeconds - m.DurationSeconds;
+        Log.Info($"MP4 check before deleting the AVI: AVI {a.DurationSeconds:0.00} s ({droppedSeconds:0.00} s of it dropped frames), MP4 {m.DurationSeconds:0.00} s");
+        return Math.Abs(diff) <= Math.Max(1.0, a.DurationSeconds * 0.002) ? null
+            : $"the MP4 is {Math.Abs(diff):0} s {(diff > 0 ? "shorter" : "longer")} than it";
+    }
+
+    private static void TryDeleteFile(string path)
+    {
+        try { if (File.Exists(path)) File.Delete(path); } catch (Exception ex) { Log.Warn($"Couldn't delete {path}: {ex.Message}"); }
     }
 
     /// <summary>Shows what post-processing is doing at the top of the panel; null puts the description back.</summary>
@@ -860,6 +1034,95 @@ public partial class MainWindow : Window
         UpdateAiUi();
     }
 
+    // ---------------------------------------------------------------- preview sound
+
+    private void UpdateMuteUi()
+    {
+        bool muted = _settings.MutePreview;
+        MuteIcon.Data = Geo(muted ? "Geo.SpeakerOff" : "Geo.Speaker");
+        MuteButton.ToolTip = muted
+            ? "Sound muted on this PC (M). Captures still record it."
+            : "Mute the sound on this PC (M). Captures still record it.";
+        AutomationProperties.SetName(MuteButton, muted ? "Unmute playback sound" : "Mute playback sound");
+        MuteButton.Foreground = muted ? Res("B.Yellow") : (Brush)new BrushConverter().ConvertFrom("#B3DEE8F6")!;
+    }
+
+    private async void Mute_Click(object sender, RoutedEventArgs e) => await ToggleMuteAsync();
+
+    private async Task ToggleMuteAsync()
+    {
+        _settings.MutePreview = !_settings.MutePreview;
+        _settings.Save();
+        UpdateMuteUi();
+        await _controller.SetPreviewMutedAsync(_settings.MutePreview);
+    }
+
+    // ---------------------------------------------------------------- MP4 live convert
+
+    private bool LiveMp4On => _settings.LiveMp4 && _hasFfmpeg;
+
+    private bool DeleteAviOn => LiveMp4On && _settings.DeleteAviAfterMp4;
+
+    private string IdleStorageNote =>
+        DeleteAviOn ? "MP4 for Jellyfin · AVI deleted once checked"
+        : LiveMp4On ? "DV AVI untouched + MP4 for Jellyfin"
+        : "DV AVI · No re-encoding";
+
+    private void UpdateLiveMp4Ui()
+    {
+        bool on = LiveMp4On;
+        LiveMp4Value.Text = _hasFfmpeg ? "" : "needs FFmpeg";
+        SetSwitchLook(LiveMp4Button, LiveMp4Label, LiveMp4Track, LiveMp4Knob, on);
+        LiveMp4Button.IsEnabled = _hasFfmpeg && !_capturing;
+        LiveMp4Button.ToolTip = _hasFfmpeg
+            ? "Makes an MP4 that plays in Jellyfin on any phone or browser while the tape plays, next to the untouched AVI."
+            : FfmpegTools.MissingMessage;
+        AutomationProperties.SetName(LiveMp4Button, on ? "MP4 live convert, on" : "MP4 live convert, off");
+
+        // Deleting the AVI only makes sense when there's a checked MP4 to keep instead.
+        bool delete = DeleteAviOn;
+        DeleteAviButton.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
+        SetSwitchLook(DeleteAviButton, DeleteAviLabel, DeleteAviTrack, DeleteAviKnob, delete, warn: true);
+        DeleteAviButton.IsEnabled = !_capturing;
+        DeleteAviButton.ToolTip = "Deletes the AVI for good once the MP4 has been checked to be the same length. " +
+            "The AVI is the exact copy of the tape; without it, a better copy later means playing the tape again.";
+        AutomationProperties.SetName(DeleteAviButton, delete ? "Delete the AVI after the MP4 is checked, on" : "Delete the AVI after the MP4 is checked, off");
+
+        FileExtText.Text = delete ? ".MP4" : on ? ".AVI + .MP4" : ".AVI";
+        if (!_capturing) StorageNote.Text = IdleStorageNote;
+        UpdateFreeSpace();
+    }
+
+    /// <summary>The iOS-style switch: knob right and lit when on (amber for a switch that deletes things).</summary>
+    private void SetSwitchLook(Button row, TrackedText label, Border track, FrameworkElement knob, bool on, bool warn = false)
+    {
+        label.Foreground = on ? Res(warn ? "B.Yellow" : "B.Accent") : Res("B.Label");
+        if (on && !warn) row.BorderBrush = Res("B.AiQueuedEdge");
+        else row.ClearValue(BorderBrushProperty); // back to the style, which lights the edge on hover
+        knob.HorizontalAlignment = on ? HorizontalAlignment.Right : HorizontalAlignment.Left;
+        track.Background = !on ? (Brush)new BrushConverter().ConvertFrom("#1FFFFFFF")!
+            : warn ? new LinearGradientBrush(Color.FromRgb(0xE0, 0x9A, 0x3A), Color.FromRgb(0xF2, 0xC2, 0x6B), 0)
+            : new LinearGradientBrush(Color.FromRgb(0x4C, 0x8D, 0xFF), Color.FromRgb(0x7F, 0xC4, 0xFF), 0);
+        track.BorderBrush = (Brush)new BrushConverter().ConvertFrom(!on ? "#26FFFFFF" : warn ? "#66F2C26B" : "#668FC8FF")!;
+    }
+
+    private void DeleteAvi_Click(object sender, RoutedEventArgs e)
+    {
+        if (_capturing) return;
+        _settings.DeleteAviAfterMp4 = !_settings.DeleteAviAfterMp4;
+        _settings.Save();
+        UpdateLiveMp4Ui();
+    }
+
+    private void LiveMp4_Click(object sender, RoutedEventArgs e)
+    {
+        if (_capturing) return;
+        _settings.LiveMp4 = !_settings.LiveMp4;
+        _settings.Save();
+        UpdateLiveMp4Ui();
+        UpdateConvertUi(); // its notes mention the live MP4
+    }
+
     private void UpdateChapterUi()
     {
         bool on = _settings.AddChapters && _hasFfmpeg;
@@ -868,6 +1131,8 @@ public partial class MainWindow : Window
         ChapterButton.IsEnabled = _hasFfmpeg;
         ChapterNote.Text = !_hasFfmpeg ? FfmpegTools.MissingMessage
             : !on ? "Off. Captures are saved without chapters."
+            : LiveMp4On
+                ? "Scans the finished capture (about a minute per tape). The chapters go inside the MP4, where Jellyfin shows them."
             : _settings.ConvertAfterCapture
                 ? "Scans the finished capture (about a minute per tape). The chapters go inside the converted copy, where Jellyfin shows them."
                 : "Scans the finished capture (about a minute per tape). AVI files can't hold chapters, so Jellyfin won't see them: turn on Convert to put them inside a copy.";
@@ -890,6 +1155,8 @@ public partial class MainWindow : Window
             _hasFfmpeg ? "CONVERT AFTER CAPTURE" : "FFMPEG NOT INSTALLED", "WILL CONVERT AFTER CAPTURE", "Geo.Film");
         ConvertButton.IsEnabled = PresetButton.IsEnabled = _hasFfmpeg;
         ConvertNote.Text = !_hasFfmpeg ? FfmpegTools.MissingMessage
+            : on && LiveMp4On && preset.Id == Converter.Jellyfin.Id
+                ? "MP4 live convert (02) already makes this copy during capture, so this step is skipped. Choose another format to get a second copy."
             : on ? $"{preset.Description} The capture itself is kept."
             : preset.Description;
         AutomationProperties.SetName(ConvertButton, on ? "Don't convert after capture" : "Convert after capture");
@@ -1001,7 +1268,7 @@ public partial class MainWindow : Window
             UsedColumn.Width = new GridLength(Math.Max(0.001, total - free), GridUnitType.Star);
             FreeColumn.Width = new GridLength(Math.Max(0.001, free), GridUnitType.Star);
 
-            double hours = free / AppSettings.DvBytesPerHour;
+            double hours = free / (AppSettings.DvBytesPerHour + (LiveMp4On ? AppSettings.LiveMp4BytesPerHour : 0));
             bool low = free < AppSettings.MinimumFreeBytes;
             HoursText.Text = low ? "NOT ENOUGH ROOM"
                 : hours >= 2 ? $"≈ {Math.Floor(hours):0} HOURS"
@@ -1153,6 +1420,13 @@ public partial class MainWindow : Window
         if (Keyboard.FocusedElement is ButtonBase focused && !_transportButtons.Contains(focused) && e.Key is Key.Space or Key.Enter)
             return;
 
+        if (e.Key == Key.M) // mute works while capturing too
+        {
+            e.Handled = true;
+            await ToggleMuteAsync();
+            return;
+        }
+
         if (e.Key == Key.R)
         {
             if (CaptureButton.IsEnabled)
@@ -1191,8 +1465,14 @@ public partial class MainWindow : Window
         }
         if (_postRunning)
         {
-            var answer = MessageBox.Show(this, "Post-processing is still running. Stop it and close?",
-                "Tape Time Machine", MessageBoxButton.YesNo, MessageBoxImage.Question);
+            // The live MP4 is only safe once it's saved; closing before that can lose it, so say so plainly.
+            var answer = _liveMp4Saving
+                ? MessageBox.Show(this, "This tape's MP4 is still being saved. It takes a minute or two.\n\n" +
+                    "Close anyway? The MP4 may be lost (the AVI is kept). Choose No to wait.",
+                    "Tape Time Machine", MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No)
+                : MessageBox.Show(this, "Post-processing is still running. Stop it and close?" +
+                    (_settings.LiveMp4 ? "\n\nAny MP4 already saved is kept." : ""),
+                    "Tape Time Machine", MessageBoxButton.YesNo, MessageBoxImage.Question);
             if (answer != MessageBoxResult.Yes)
             {
                 e.Cancel = true;
@@ -1217,7 +1497,8 @@ public partial class MainWindow : Window
     /// <summary>Sizes the way File Explorer shows them (1 GB = 1024³ bytes).</summary>
     private static string FormatBytes(long bytes)
     {
-        const double GB = 1024d * 1024 * 1024, MB = 1024d * 1024;
+        const double TB = 1024d * 1024 * 1024 * 1024, GB = 1024d * 1024 * 1024, MB = 1024d * 1024;
+        if (bytes >= 1000 * GB) return $"{bytes / TB:0.00} TB"; // "1.44 TB" fits where "1476.3 GB" doesn't
         if (bytes >= GB) return $"{bytes / GB:0.0} GB";
         return $"{bytes / MB:0} MB";
     }

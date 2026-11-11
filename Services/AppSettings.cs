@@ -10,6 +10,9 @@ public sealed class AppSettings
     /// <summary>DV is about 3.6 MB per second of tape.</summary>
     public const double DvBytesPerHour = 3_600_000d * 3600d;
 
+    /// <summary>The live MP4 measured 3.5 to 4.4 GB an hour on real tapes; this leaves some room.</summary>
+    public const double LiveMp4BytesPerHour = 4.5e9;
+
     /// <summary>Don't start (and stop) a capture with less than this free.</summary>
     public const long MinimumFreeBytes = 2L * 1024 * 1024 * 1024;
 
@@ -20,6 +23,18 @@ public sealed class AppSettings
 
     public string OutputFolder { get; set; } = DefaultFolder();
     public string FileName { get; set; } = "Tape 1";
+
+    /// <summary>Silence the tape's sound on this PC's speakers. Captures always record the sound.</summary>
+    public bool MutePreview { get; set; }
+
+    /// <summary>"MP4 live convert": also make the Jellyfin/phone MP4 while the tape plays, next to the AVI.</summary>
+    public bool LiveMp4 { get; set; }
+
+    /// <summary>
+    /// With MP4 live convert: delete the AVI once the finished MP4 has been checked against it (same length).
+    /// Off by default: the AVI is the exact copy of the tape, and without it a better conversion means replaying the tape.
+    /// </summary>
+    public bool DeleteAviAfterMp4 { get; set; }
 
     /// <summary>Audio clean-up run after each capture, in order (names from <see cref="PostProcess.AudioPlugins"/>).</summary>
     public List<string> AudioPlugins { get; set; } = [];

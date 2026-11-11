@@ -148,6 +148,8 @@
         <Geometry x:Key="Geo.Minimize">M7,12 H17</Geometry>
         <Geometry x:Key="Geo.Restore">M8,9 H15 V16 H8 Z M10,9 V7 H17 V14 H15</Geometry>
         <Geometry x:Key="Geo.Close">M8,8 L16,16 M16,8 L8,16</Geometry>
+        <Geometry x:Key="Geo.Speaker">M11,5 L6,9 H3 V15 H6 L11,19 Z M15.5,8.5 A5,5 0 0 1 15.5,15.5 M18.5,5.5 A9.5,9.5 0 0 1 18.5,18.5</Geometry>
+        <Geometry x:Key="Geo.SpeakerOff">M11,5 L6,9 H3 V15 H6 L11,19 Z M16,9.5 L21,14.5 M21,9.5 L16,14.5</Geometry>
         <RectangleGeometry x:Key="Geo.Maximize" Rect="7,7,10,10" RadiusX="1.5" RadiusY="1.5" />
         <RectangleGeometry x:Key="Geo.Stop" Rect="8,8,8,8" RadiusX="1" RadiusY="1" />
         <RectangleGeometry x:Key="Geo.StopSmall" Rect="7.5,7.5,9,9" RadiusX="1.5" RadiusY="1.5" />

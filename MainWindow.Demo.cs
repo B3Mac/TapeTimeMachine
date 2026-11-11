@@ -51,6 +51,10 @@ public partial class MainWindow
         const string processArg = "--demo-process=";
         if (Environment.GetCommandLineArgs().FirstOrDefault(a => a.StartsWith(processArg, StringComparison.OrdinalIgnoreCase)) is string process)
             _ = DemoProcessAsync(process[processArg.Length..]);
+
+        const string liveArg = "--demo-live=";
+        if (Environment.GetCommandLineArgs().FirstOrDefault(a => a.StartsWith(liveArg, StringComparison.OrdinalIgnoreCase)) is string liveFile)
+            _ = DemoLiveAsync(liveFile[liveArg.Length..]);
         _demoTimer = new DispatcherTimer(TimeSpan.FromMilliseconds(100), DispatcherPriority.Background, (_, _) =>
         {
             _controller.Frames.BufferCB(0, frameHandle.AddrOfPinnedObject(), frame.Length);
@@ -60,7 +64,7 @@ public partial class MainWindow
             for (int i = 0; i < tone.Length; i++) tone[i] = (short)(Math.Sin(i * 0.07) * amplitude);
             _controller.Audio.BufferCB(0, toneHandle.AddrOfPinnedObject(), tone.Length * 2);
 
-            if (_capturing)
+            if (_capturing && !_demoLive)
             {
                 var elapsed = DateTime.Now - started + TimeSpan.FromMinutes(12);
                 // --demo-blank: as if the last 95 s of tape were blank, to show the auto-stop countdown.
@@ -82,6 +86,89 @@ public partial class MainWindow
             _settings.ConvertAfterCapture = before;
             UpdateConvertUi();
         }
+    }
+
+    private bool _demoLive;
+
+    /// <summary>
+    /// --demo-live=FILE.avi: plays an existing DV capture's frames into the live MP4 encoder at tape speed, as if it
+    /// were being captured, then runs the normal after-capture steps on it. --demo-live-skip=N leaves out N frames
+    /// part-way, to check that a short live MP4 is rejected and the AVI is converted instead.
+    /// </summary>
+    private async Task DemoLiveAsync(string avi)
+    {
+        string? ffmpeg = FfmpegTools.FindFfmpeg();
+        MediaInfo? info = await FfmpegTools.ProbeAsync(avi);
+        if (ffmpeg is null || info is null) { ShowToast("demo-live needs FFmpeg and a readable DV AVI.", ToastKind.Error); return; }
+        const string skipArg = "--demo-live-skip=";
+        int skip = Environment.GetCommandLineArgs().FirstOrDefault(a => a.StartsWith(skipArg, StringComparison.OrdinalIgnoreCase)) is string s
+            ? int.Parse(s[skipArg.Length..]) : 0;
+
+        _demoLive = true;
+        _captureLiveWanted = true;
+        _settings.LiveMp4 = true; // shown on for this run only; never saved
+        if (DemoArg("--demo-delete-avi")) _settings.DeleteAviAfterMp4 = true; // deletes the AVI given: use a copy
+        UpdateLiveMp4Ui();
+        UpdateConvertUi();
+        SetCapturing(true);
+        var encoder = new LiveMp4Encoder(ffmpeg, TransportController.LivePartPath(avi));
+        int frameBytes = info.Height >= 576 ? 144_000 : 120_000;
+        double fps = info.FramesPerSecond > 0 ? info.FramesPerSecond : 29.97;
+
+        // The DV video stream in a type-2 AVI holds the camcorder's whole frames, sound included.
+        var psi = FfmpegTools.NewProcess(ffmpeg);
+        foreach (var a in new[] { "-hide_banner", "-loglevel", "error", "-i", avi, "-map", "0:v:0", "-c", "copy", "-f", "rawvideo", "pipe:1" })
+            psi.ArgumentList.Add(a);
+        using var reader = System.Diagnostics.Process.Start(psi)!;
+        _ = reader.StandardError.ReadToEndAsync();
+        var stdout = reader.StandardOutput.BaseStream;
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        long index = 0;
+        await Task.Run(async () =>
+        {
+            while (true)
+            {
+                var frame = new byte[frameBytes];
+                int read = 0;
+                while (read < frameBytes)
+                {
+                    int n = await stdout.ReadAsync(frame.AsMemory(read));
+                    if (n <= 0) return;
+                    read += n;
+                }
+                index++;
+                if (skip > 0 && index > 300 && index <= 300 + skip) continue; // a gap, as if the preview missed frames
+                encoder.Push(frame);
+                var due = TimeSpan.FromSeconds(index / fps) - clock.Elapsed;
+                if (due > TimeSpan.Zero) await Task.Delay(due);
+                if (index % 15 == 0)
+                {
+                    var elapsed = clock.Elapsed;
+                    long dropped = encoder.Dropped;
+                    _ = Dispatcher.InvokeAsync(() =>
+                        OnCaptureProgress(new CaptureProgress(elapsed, (long)(index * frameBytes), 0, default, dropped)));
+                }
+            }
+        });
+
+        SetCapturing(false);
+        _demoLive = false;
+        _captureLiveWanted = false;
+        Log.Info($"demo-live: fed {index} frames ({skip} skipped) in {clock.Elapsed}");
+
+        // --demo-stop-after=SECONDS: presses Stop on post-processing that long after it starts (0 = straight away).
+        const string stopArg = "--demo-stop-after=";
+        if (Environment.GetCommandLineArgs().FirstOrDefault(a => a.StartsWith(stopArg, StringComparison.OrdinalIgnoreCase)) is string stop)
+        {
+            double seconds = double.Parse(stop[stopArg.Length..], System.Globalization.CultureInfo.InvariantCulture);
+            _ = Dispatcher.InvokeAsync(async () =>
+            {
+                await Task.Delay(TimeSpan.FromSeconds(seconds));
+                Log.Info($"demo-live: pressing Stop on post-processing after {seconds} s");
+                _postCts?.Cancel();
+            }, DispatcherPriority.Background);
+        }
+        await RunPostProcessingAsync(avi, encoder, liveWanted: true, fromCapture: true);
     }
 
     /// <summary>A soft sunset-over-water test card, bottom-up BGRA like a DirectShow DIB.</summary>

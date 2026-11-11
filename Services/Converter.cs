@@ -19,6 +19,9 @@ public sealed class ConvertOptions
 
 public sealed record ConvertResult(bool Ok, string? OutputPath = null, string? Message = null);
 
+/// <param name="FrameExact">The live MP4 has exactly the AVI's frames, so sound made from the AVI lines up with it.</param>
+public sealed record LiveMp4Finish(bool Ok, string? OutputPath = null, string? Message = null, bool FrameExact = false, double DurationSeconds = 0);
+
 /// <summary>
 /// Makes a copy of a capture that plays everywhere. The captured DV file is large and interlaced, and
 /// browsers can't play it, so Jellyfin has to convert it every time someone watches. These presets do
@@ -95,16 +98,14 @@ public static class Converter
             args.AddRange(["-vf", string.Join(",", filters)]);
 
             if (preset.Id == Smaller.Id)
-                args.AddRange(["-c:v", "libx265", "-preset", "medium", "-crf", "22", "-tag:v", "hvc1", "-x265-params", "log-level=error"]);
+                args.AddRange(["-c:v", "libx265", "-preset", "medium", "-crf", "22", "-tag:v", "hvc1", "-x265-params", "log-level=error", "-pix_fmt", "yuv420p"]);
             else
-                args.AddRange(["-c:v", "libx264", "-preset", "medium", "-crf", "19", "-profile:v", "high"]);
+                args.AddRange(LiveMp4Encoder.VideoArgs); // the same picture the live MP4 makes during capture
 
-            args.AddRange(["-pix_fmt", "yuv420p"]);
             if (info.Height <= 576) // standard-definition colour, so players don't guess HD colour
-                args.AddRange(info.Height == 576
-                    ? ["-color_primaries", "bt470bg", "-color_trc", "gamma28", "-colorspace", "bt470bg"]
-                    : ["-color_primaries", "smpte170m", "-color_trc", "smpte170m", "-colorspace", "smpte170m"]);
-            args.AddRange(["-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-ac", "2", "-movflags", "+faststart"]);
+                args.AddRange(LiveMp4Encoder.ColourArgs(pal: info.Height == 576));
+            args.AddRange(LiveMp4Encoder.AudioArgs);
+            args.AddRange(["-movflags", "+faststart"]);
         }
         args.Add(output);
 
@@ -125,6 +126,140 @@ public static class Converter
         finally
         {
             if (metadata is not null) TryDelete(metadata);
+        }
+    }
+
+    /// <summary>
+    /// Turns the MP4 made during capture into the final "Name.mp4" straight after the capture, before the slow
+    /// steps: checks it has the whole tape (against the AVI's frame count), then copies it, without re-encoding,
+    /// into a normal MP4 laid out for streaming. Chapters and cleaned sound go in afterwards with
+    /// <see cref="AddToMp4Async"/>. Fails (so the caller converts the AVI instead) when the live copy is missing
+    /// frames. The live ".part" file is only deleted once the MP4 is written.
+    /// </summary>
+    /// <param name="captureDropped">
+    /// Frames the capture itself dropped (bad patches of tape). The AVI fills each gap so its timing stays right;
+    /// the live copy never receives those frames, so it is expected to have that many fewer.
+    /// </param>
+    public static async Task<LiveMp4Finish> FinishLiveMp4Async(LiveMp4Result live, string aviPath, long captureDropped = 0,
+        IProgress<double>? progress = null, CancellationToken ct = default)
+    {
+        if (!live.Ok || live.PartPath is null || !File.Exists(live.PartPath))
+            return new(false, Message: live.Message ?? "The live MP4 wasn't written.");
+
+        MediaInfo? avi = await FfmpegTools.ProbeAsync(aviPath, ct);
+        if (avi is null) return new(false, Message: "Couldn't read the capture to check the live MP4 against it.");
+
+        // The live copy comes from the preview's frames; it must have (virtually) every frame the camcorder sent.
+        long missing = avi.FrameCount - Math.Max(0, captureDropped) - live.FramesIn;
+        long allowed = Math.Max(30, avi.FrameCount / 500); // a second, or 0.2% of a long tape
+        Log.Info($"Live MP4 check: AVI {avi.FrameCount} frames ({captureDropped} of them filled-in drops), live {live.FramesIn} in, {live.Dropped} dropped, missing {missing} (allowed {allowed})");
+        if (live.Dropped > 0 || Math.Abs(missing) > allowed)
+            return new(false, Message: live.Dropped > 0
+                ? $"The live MP4 fell behind and missed {live.Dropped:N0} frames."
+                : $"The live MP4 is missing {Math.Abs(missing):N0} frames.");
+
+        string folder = Path.GetDirectoryName(aviPath)!;
+        string output = AppSettings.UniquePath(folder, Path.GetFileNameWithoutExtension(aviPath), ".mp4");
+        string[] args = ["-i", live.PartPath, "-map", "0:v:0", "-map", "0:a:0?", "-c", "copy", "-movflags", "+faststart", output];
+        try
+        {
+            FfmpegResult run = await FfmpegTools.RunAsync(args, avi.DurationSeconds, progress, ct);
+            if (run.Ok && File.Exists(output) && new FileInfo(output).Length > 0)
+            {
+                TryDelete(live.PartPath);
+                Log.Info($"Live MP4 saved: {output}");
+                return new(true, output, FrameExact: missing == 0 && captureDropped <= 0,
+                    DurationSeconds: avi.DurationSeconds - Math.Max(0, captureDropped) / (avi.FramesPerSecond > 0 ? avi.FramesPerSecond : 29.97));
+            }
+            TryDelete(output);
+            return new(false, Message: run.Message ?? "The live MP4 couldn't be finished.");
+        }
+        catch (OperationCanceledException)
+        {
+            TryDelete(output);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Puts chapters and/or cleaned-up sound into an MP4 that already exists, without re-encoding the picture.
+    /// Writes a temporary file next to it and swaps it in only when it's complete, so stopping or failing
+    /// leaves the MP4 as it was.
+    /// </summary>
+    public static async Task<ConvertResult> AddToMp4Async(string mp4Path, double durationSeconds, IReadOnlyList<Chapter>? chapters,
+        string? cleanAudioPath, IProgress<double>? progress = null, CancellationToken ct = default)
+    {
+        bool useCleanAudio = cleanAudioPath is not null && File.Exists(cleanAudioPath);
+        var inFile = (chapters ?? []).Where(c => c.Start.TotalSeconds < durationSeconds).ToList();
+        if (!useCleanAudio && inFile.Count == 0) return new(true, mp4Path);
+
+        string temp = Path.Combine(Path.GetDirectoryName(mp4Path)!, Path.GetFileNameWithoutExtension(mp4Path) + ".adding.tmp");
+        string? metadata = null;
+        var args = new List<string> { "-i", mp4Path };
+        int next = 1;
+        int audioInput = 0;
+        if (useCleanAudio)
+        {
+            args.AddRange(["-i", cleanAudioPath!]);
+            audioInput = next++;
+        }
+        if (inFile.Count > 0)
+        {
+            metadata = Path.Combine(Path.GetTempPath(), $"ttm-chapters-{Guid.NewGuid():N}.txt");
+            ChapterWriter.WriteFfMetadata(metadata, inFile, TimeSpan.FromSeconds(durationSeconds));
+            args.AddRange(["-i", metadata, "-map_chapters", next.ToString()]);
+            next++;
+        }
+        args.AddRange(["-map", "0:v:0", "-map", $"{audioInput}:a:0?", "-c:v", "copy"]);
+        if (useCleanAudio) args.AddRange(LiveMp4Encoder.AudioArgs);
+        else args.AddRange(["-c:a", "copy"]);
+        args.AddRange(["-movflags", "+faststart", "-f", "mp4", temp]);
+
+        try
+        {
+            FfmpegResult run = await FfmpegTools.RunAsync(args, durationSeconds, progress, ct);
+            if (run.Ok && File.Exists(temp) && new FileInfo(temp).Length > 0)
+            {
+                File.Move(temp, mp4Path, overwrite: true);
+                return new(true, mp4Path);
+            }
+            TryDelete(temp);
+            return new(false, Message: run.Message ?? "The chapters couldn't be added to the MP4.");
+        }
+        catch (OperationCanceledException)
+        {
+            TryDelete(temp);
+            throw;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            TryDelete(temp);
+            return new(false, Message: $"The chapters couldn't be added to the MP4 ({ex.Message}).");
+        }
+        finally
+        {
+            if (metadata is not null) TryDelete(metadata);
+        }
+    }
+
+    /// <summary>
+    /// The finished live ".part" file is a complete, playable MP4 (just not laid out for streaming). When
+    /// finishing it is stopped, keep it as "Name.mp4" rather than losing the tape's MP4.
+    /// </summary>
+    public static string? KeepLivePart(string partPath, string aviPath)
+    {
+        if (!File.Exists(partPath)) return null;
+        try
+        {
+            string output = AppSettings.UniquePath(Path.GetDirectoryName(aviPath)!, Path.GetFileNameWithoutExtension(aviPath), ".mp4");
+            File.Move(partPath, output);
+            Log.Info($"Kept the live MP4 as {output}");
+            return output;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Log.Warn($"Couldn't keep the live MP4 {partPath}: {ex.Message}");
+            return null;
         }
     }
 

@@ -27,15 +27,20 @@ public sealed record TransportSnapshot(TransportMode Mode, int RawMode, TapeTime
 public sealed record CommandResult(bool Ok, string? Message = null);
 
 /// <param name="Blank">How long the picture has been blank (unrecorded tape); the capture stops at <see cref="TransportController.BlankStopAfter"/>.</param>
-public sealed record CaptureProgress(TimeSpan Elapsed, long Bytes, int DroppedFrames, TimeSpan Blank = default);
+/// <param name="LiveMp4Dropped">Frames the live MP4 couldn't keep up with (-1 when no live MP4 is running).</param>
+public sealed record CaptureProgress(TimeSpan Elapsed, long Bytes, int DroppedFrames, TimeSpan Blank = default, long LiveMp4Dropped = -1);
 
+/// <param name="LiveMp4">The MP4 made during the capture, still finishing; null when that wasn't on or possible.</param>
+/// <param name="LiveMp4Unavailable">The live MP4 was asked for but couldn't run (the preview isn't using FFmpeg).</param>
 public sealed record CaptureOutcome(
     bool Ok,
     string? Path = null,
     string? Message = null,
     TimeSpan Elapsed = default,
     long Bytes = 0,
-    int DroppedFrames = 0);
+    int DroppedFrames = 0,
+    LiveMp4Encoder? LiveMp4 = null,
+    bool LiveMp4Unavailable = false);
 
 /// <summary>
 /// Owns the DirectShow graph for the "Microsoft DV Camera and VCR" device.
@@ -76,6 +81,7 @@ public sealed class TransportController : IDisposable
     private IBaseFilter? _decoder;
     private IBaseFilter? _grabber;
     private FfmpegPreview? _ffmpegPreview;
+    private LiveMp4Encoder? _live;
     private IBaseFilter? _audioGrabber;
     private IBaseFilter? _nullRenderer;
     private IAMExtTransport? _transport;
@@ -173,7 +179,8 @@ public sealed class TransportController : IDisposable
     });
 #endif
 
-    public Task<CaptureOutcome> StartCaptureAsync(string path) => _thread.InvokeAsync(() => StartCapture(path));
+    /// <param name="liveMp4">Also make the Jellyfin MP4 while the tape plays (needs the FFmpeg preview).</param>
+    public Task<CaptureOutcome> StartCaptureAsync(string path, bool liveMp4 = false) => _thread.InvokeAsync(() => StartCapture(path, liveMp4));
 
     public Task<CaptureOutcome> StopCaptureAsync() => _thread.InvokeAsync(() => StopCapture(restartPreview: true));
 
@@ -292,6 +299,7 @@ public sealed class TransportController : IDisposable
 #if DEBUG
         ApplyDebugPreviewVariant();
 #endif
+        ApplyPreviewVolume();
 
         hr = _control.Run();
         if (hr < 0)
@@ -421,6 +429,29 @@ public sealed class TransportController : IDisposable
             }
             finally { Marshal.ReleaseComObject(audio); }
         }
+    }
+
+    private volatile bool _previewMuted;
+
+    /// <summary>
+    /// Silences (or restores) the tape's sound on the speakers. Only the preview's audio renderer changes: the
+    /// capture branch records the sound regardless, and the level meter sits before the renderer so it keeps moving.
+    /// </summary>
+    public Task SetPreviewMutedAsync(bool muted) => _thread.InvokeAsync(() =>
+    {
+        _previewMuted = muted;
+        ApplyPreviewVolume();
+    });
+
+    private void ApplyPreviewVolume()
+    {
+        if (_graph is not IBasicAudio audio) return;
+        try
+        {
+            int hr = audio.put_Volume(_previewMuted ? -10000 : 0); // hundredths of a dB; -10000 is silent
+            Log.Info($"Preview sound {(_previewMuted ? "muted" : "on")} {Hex(hr)}");
+        }
+        catch (Exception ex) when (ex is COMException or InvalidCastException) { Log.Warn($"Preview volume: {ex.Message}"); }
     }
 
     /// <summary>Splitter audio → Sample Grabber (PCM, feeds <see cref="Audio"/>) → speakers.</summary>
@@ -607,6 +638,9 @@ public sealed class TransportController : IDisposable
 
         if (_capturePath is not null) Log.Info($"Capture closed by teardown: {_capturePath}");
         _capturePath = null;
+        _live?.Abort();
+        _live?.Dispose();
+        _live = null;
         _captureClock.Reset();
         _teeConnected = false;
 
@@ -647,7 +681,7 @@ public sealed class TransportController : IDisposable
 
     // ---------------------------------------------------------------- capture
 
-    private CaptureOutcome StartCapture(string path)
+    private CaptureOutcome StartCapture(string path, bool liveMp4)
     {
         if (_graph is null || _control is null || !_teeConnected)
             return new(false, Message: "Capture isn't available because the camcorder's video couldn't be opened.");
@@ -679,6 +713,22 @@ public sealed class TransportController : IDisposable
             _droppedBaseline = 0;
             if (_dropped is not null && _dropped.GetNumDropped(out int baseline) >= 0) _droppedBaseline = baseline;
 
+            // The live MP4 is fed from the preview's copies of the same DV frames, so the capture branch is unchanged.
+            bool liveUnavailable = false;
+            if (liveMp4)
+            {
+                if (_ffmpegPreview is not null && PostProcess.FindFfmpeg() is string ffmpeg)
+                {
+                    _live = new LiveMp4Encoder(ffmpeg, LivePartPath(path));
+                    _ffmpegPreview.Live = _live;
+                }
+                else
+                {
+                    liveUnavailable = true;
+                    Log.Warn("Live MP4 asked for, but the preview isn't using FFmpeg; the MP4 will be made after the capture");
+                }
+            }
+
             _capturePath = path;
             _notPlayingPolls = 0;
             _captureSawPlaying = _mode == TransportMode.Playing;
@@ -686,12 +736,13 @@ public sealed class TransportController : IDisposable
             _captureClock.Restart();
             _captureStartTicks = _captureGrewTicks = Environment.TickCount64;
             _captureBytes = 0;
-            Log.Info($"Capture started: {path}");
-            return new(true, path);
+            Log.Info($"Capture started: {path}{(_live is not null ? " (with live MP4)" : "")}");
+            return new(true, path, LiveMp4Unavailable: liveUnavailable);
         }
         catch (Exception ex) when (ex is COMException or InvalidCastException)
         {
             Log.Error("Capture start failed", ex);
+            DetachLive()?.Abort();
             _capturePath = null;
             RemoveCaptureBranch();
             try { _control.Run(); } catch { }
@@ -709,6 +760,7 @@ public sealed class TransportController : IDisposable
 
         // Stopping the graph makes the AVI Mux write its index and close the file.
         try { _control?.Stop(); } catch (Exception ex) { Log.Error("Graph stop during capture", ex); }
+        LiveMp4Encoder? live = DetachLive(); // no more frames reach it; it finishes in the background
         TimeSpan elapsed = _captureClock.Elapsed;
         _captureClock.Reset();
         int dropped = ReadDropped();
@@ -726,11 +778,25 @@ public sealed class TransportController : IDisposable
         {
             Log.Info($"Capture had no picture ({bytes} bytes); deleting {path}");
             try { File.Delete(path); } catch (Exception ex) { Log.Error("Deleting empty capture", ex); }
+            live?.Abort();
+            live?.Dispose();
             return new(false, null, "Nothing was recorded because no picture came from the tape.", elapsed, 0, dropped);
         }
 
         Log.Info($"Capture saved: {path} {bytes} bytes, {elapsed}, dropped {dropped}");
-        return new(true, path, null, elapsed, bytes, dropped);
+        return new(true, path, null, elapsed, bytes, dropped, live);
+    }
+
+    /// <summary>"Tape 1.avi" → "Tape 1.mp4.part" (Jellyfin and players ignore it until it becomes "Tape 1.mp4").</summary>
+    public static string LivePartPath(string aviPath) =>
+        Path.Combine(Path.GetDirectoryName(aviPath)!, Path.GetFileNameWithoutExtension(aviPath) + ".mp4.part");
+
+    private LiveMp4Encoder? DetachLive()
+    {
+        if (_ffmpegPreview is not null) _ffmpegPreview.Live = null;
+        var live = _live;
+        _live = null;
+        return live;
     }
 
     /// <summary>Under ~8 DV frames: nothing but AVI headers.</summary>
@@ -780,7 +846,7 @@ public sealed class TransportController : IDisposable
             _captureGrewTicks = Environment.TickCount64;
         }
         TimeSpan blank = BlankFor();
-        CaptureProgressed?.Invoke(new CaptureProgress(_captureClock.Elapsed, bytes, ReadDropped(), blank));
+        CaptureProgressed?.Invoke(new CaptureProgress(_captureClock.Elapsed, bytes, ReadDropped(), blank, _live?.Dropped ?? -1));
 
         // Unrecorded tape shows as a flat grey, blue or black picture (or, on MiniDV, no picture at all).
         // After two minutes of that the recording is over: stop, and stop the tape so it doesn't play on to the end.

@@ -250,6 +250,52 @@
                                             </StackPanel>
                                         </Border>
                                     </Popup>
+
+                                    <!-- MP4 live convert: the Jellyfin/phone copy made while the tape plays -->
+                                    <Button x:Name="LiveMp4Button" Style="{StaticResource FieldButton}" MinHeight="44" Margin="0,10,0,0"
+                                            Click="LiveMp4_Click" AutomationProperties.Name="MP4 live convert">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel VerticalAlignment="Center" Margin="2,0,8,0" Orientation="Horizontal">
+                                                <c:TrackedText x:Name="LiveMp4Label" Style="{StaticResource SmallLabel}" VerticalAlignment="Center" Text="MP4 LIVE CONVERT" />
+                                                <TextBlock x:Name="LiveMp4Value" Margin="8,0,0,0" VerticalAlignment="Center" FontFamily="{StaticResource F.Mono}"
+                                                           FontSize="10.5" Foreground="{StaticResource B.TextDim}" Text="" />
+                                            </StackPanel>
+                                            <!-- iOS-style switch -->
+                                            <Border x:Name="LiveMp4Track" Grid.Column="1" Width="36" Height="22" CornerRadius="11" VerticalAlignment="Center"
+                                                    BorderThickness="1" BorderBrush="#26FFFFFF" Background="#1FFFFFFF">
+                                                <Ellipse x:Name="LiveMp4Knob" Width="16" Height="16" Margin="2,0" HorizontalAlignment="Left" Fill="#FFE9F1FF">
+                                                    <Ellipse.Effect>
+                                                        <DropShadowEffect ShadowDepth="1" BlurRadius="4" Opacity="0.4" Color="#FF000814" />
+                                                    </Ellipse.Effect>
+                                                </Ellipse>
+                                            </Border>
+                                        </Grid>
+                                    </Button>
+
+                                    <!-- Only with MP4 live convert: keep just the MP4 -->
+                                    <Button x:Name="DeleteAviButton" Style="{StaticResource FieldButton}" MinHeight="44" Margin="0,8,0,0"
+                                            Visibility="Collapsed" Click="DeleteAvi_Click" AutomationProperties.Name="Delete the AVI after the MP4 is checked">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <c:TrackedText x:Name="DeleteAviLabel" Style="{StaticResource SmallLabel}" Margin="2,0,8,0" VerticalAlignment="Center"
+                                                           Text="DELETE AVI AFTER" />
+                                            <Border x:Name="DeleteAviTrack" Grid.Column="1" Width="36" Height="22" CornerRadius="11" VerticalAlignment="Center"
+                                                    BorderThickness="1" BorderBrush="#26FFFFFF" Background="#1FFFFFFF">
+                                                <Ellipse x:Name="DeleteAviKnob" Width="16" Height="16" Margin="2,0" HorizontalAlignment="Left" Fill="#FFE9F1FF">
+                                                    <Ellipse.Effect>
+                                                        <DropShadowEffect ShadowDepth="1" BlurRadius="4" Opacity="0.4" Color="#FF000814" />
+                                                    </Ellipse.Effect>
+                                                </Ellipse>
+                                            </Border>
+                                        </Grid>
+                                    </Button>
                                 </StackPanel>
 
                                 <!-- 03 File name -->
@@ -277,7 +323,7 @@
                                             <TextBox x:Name="FileNameBox" Style="{StaticResource BareTextBox}" Margin="14,0,0,0"
                                                      AutomationProperties.LabeledBy="{Binding ElementName=FileNameLabel}"
                                                      TextChanged="FileName_TextChanged" LostKeyboardFocus="FileName_LostFocus" />
-                                            <TextBlock Grid.Column="1" Margin="8,0,14,0" VerticalAlignment="Center" FontFamily="{StaticResource F.Mono}"
+                                            <TextBlock x:Name="FileExtText" Grid.Column="1" Margin="8,0,14,0" VerticalAlignment="Center" FontFamily="{StaticResource F.Mono}"
                                                        FontSize="12" Foreground="{StaticResource B.TextDim}" Text=".AVI" />
                                         </Grid>
                                     </Border>
@@ -525,6 +571,7 @@
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
                                     <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
                                     <ColumnDefinition Width="150" />
                                 </Grid.ColumnDefinitions>
                                 <StackPanel Grid.Column="0" Margin="0,0,24,0">
@@ -539,7 +586,12 @@
                                     <c:TrackedText Style="{StaticResource Label}" Text="AUDIO" />
                                     <TextBlock x:Name="AudioInfo" Style="{StaticResource MonoValue}" Margin="0,6,0,0" Text="—" />
                                 </StackPanel>
-                                <UniformGrid x:Name="MeterGrid" Grid.Column="3" Rows="1" Columns="14" Height="9" VerticalAlignment="Center"
+                                <!-- Mutes the speakers only; the capture always records the sound, and the meter keeps moving -->
+                                <Button x:Name="MuteButton" Grid.Column="3" Style="{StaticResource CircleButton}" Margin="0,0,10,0"
+                                        VerticalAlignment="Center" Foreground="#B3DEE8F6" Click="Mute_Click">
+                                    <c:Icon x:Name="MuteIcon" Data="{StaticResource Geo.Speaker}" Width="18" Height="18" />
+                                </Button>
+                                <UniformGrid x:Name="MeterGrid" Grid.Column="4" Rows="1" Columns="14" Height="9" VerticalAlignment="Center"
                                              AutomationProperties.Name="Audio level" />
                             </Grid>
                     </Grid>
@@ -782,7 +834,7 @@
                                         </Button>
                                         <StackPanel x:Name="ConvertProgressPanel" Margin="0,12,0,0" Visibility="Collapsed">
                                             <Grid>
-                                                <c:TrackedText Style="{StaticResource SmallLabel}" Tracking="0.12" Foreground="{StaticResource B.Accent}" Text="CONVERTING" />
+                                                <c:TrackedText x:Name="ConvertProgressLabel" Style="{StaticResource SmallLabel}" Tracking="0.12" Foreground="{StaticResource B.Accent}" Text="CONVERTING" />
                                                 <TextBlock x:Name="ConvertProgressText" Style="{StaticResource MonoValue}" FontSize="11" HorizontalAlignment="Right" />
                                             </Grid>
                                             <ProgressBar x:Name="ConvertProgressBar" Style="{StaticResource StepProgress}" Margin="0,7,0,0"

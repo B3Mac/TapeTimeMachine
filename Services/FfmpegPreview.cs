@@ -27,6 +27,14 @@ public sealed class FfmpegPreview : ISampleGrabberCB, IDisposable
     private Process? _process;
     private int _dvFrameBytes;
     private volatile bool _stopped;
+    private volatile LiveMp4Encoder? _live;
+
+    /// <summary>While set, every copied DV frame also goes to this encoder (the live MP4 during a capture).</summary>
+    public LiveMp4Encoder? Live
+    {
+        get => _live;
+        set => _live = value;
+    }
 
     public FfmpegPreview(FrameSink sink, string ffmpegPath)
     {
@@ -44,6 +52,7 @@ public sealed class FfmpegPreview : ISampleGrabberCB, IDisposable
             // Copy now, before the driver reuses this buffer.
             var copy = new byte[length];
             Marshal.Copy(buffer, copy, 0, length);
+            _live?.Push(copy); // shared read-only with the preview below
             if (_process is null) Start(length);
             _queue.Writer.TryWrite(copy);
         }
