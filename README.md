@@ -1,4 +1,4 @@
-<h1 align="center"><img src="docs/banner.webp" alt="Tape Time Machine" width="800"></h1>
+# Tape Time Machine
 
 ![Tape Time Machine main screen: capture setup on the left, the live tape picture with play and capture controls in the middle, post-processing on the right](docs/main-screen.png)
 <sub>Shown in demo mode with a generated test picture.</sub>
@@ -20,12 +20,16 @@ A Windows app for rescuing Hi8, Video8 and Digital8 tapes. Plug a Digital8 camco
   - Conversion to MP4 or MKV.
   - Hand-off to Topaz Video AI.
 
+## Download
+
+Get the latest zip from [Releases](https://github.com/B3Mac/TapeTimeMachine/releases/latest), unzip it, and run `TapeTimeMachine.exe`. It includes .NET and FFmpeg, so there's nothing else to install.
+
 ## Requirements
 
 - Windows 10 or 11, x64
 - A FireWire (IEEE 1394) port and a camcorder that outputs DV over FireWire (Digital8 or MiniDV). Analog-only Hi8 decks are not supported.
-- [.NET 10 SDK](https://dotnet.microsoft.com/download) to build
-- [FFmpeg](https://ffmpeg.org/) on the PATH, for the preview and all file processing:
+
+To build from source you also need the [.NET 10 SDK](https://dotnet.microsoft.com/download) and [FFmpeg](https://ffmpeg.org/) on the PATH (or `ffmpeg.exe` and `ffprobe.exe` next to the built exe):
 
 ```bash
 winget install Microsoft.DotNet.SDK.10
@@ -71,4 +75,4 @@ Early and in active development. Capture, preview and tape control have been tes
 
 ## License
 
-[MIT](LICENSE). Uses [DirectShowLib](https://www.nuget.org/packages/DirectShowLib) (LGPL 2.1) as a NuGet package, and calls FFmpeg as a separate program; neither is bundled in this repository.
+[MIT](LICENSE). Uses [DirectShowLib](https://www.nuget.org/packages/DirectShowLib) (LGPL 2.1) as a NuGet package. FFmpeg runs as a separate program. It isn't part of this repository, but the release zip includes an unmodified FFmpeg build from [gyan.dev](https://www.gyan.dev/ffmpeg/builds/) under the GPL v3, with its license and a note on where to get its source.

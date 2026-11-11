@@ -31,25 +31,8 @@ public static class PostProcess
 
     public sealed record Result(bool Ok, string? OutputPath = null, string? Message = null);
 
-    public static string? FindFfmpeg()
-    {
-        var dirs = new List<string>
-        {
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Microsoft", "WinGet", "Links"),
-        };
-        foreach (var scope in new[] { EnvironmentVariableTarget.Process, EnvironmentVariableTarget.User, EnvironmentVariableTarget.Machine })
-            dirs.AddRange((Environment.GetEnvironmentVariable("PATH", scope) ?? "").Split(';', StringSplitOptions.RemoveEmptyEntries));
-        foreach (var dir in dirs)
-        {
-            try
-            {
-                string candidate = Path.Combine(dir.Trim(), "ffmpeg.exe");
-                if (File.Exists(candidate)) return candidate;
-            }
-            catch { }
-        }
-        return null;
-    }
+    /// <summary>The bundled copy next to the app first, then winget's links and the PATH.</summary>
+    public static string? FindFfmpeg() => FfmpegTools.FindFfmpeg();
 
     public static string? FindTopaz()
     {
