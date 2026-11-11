@@ -65,3 +65,7 @@ Debug builds accept a few switches for working on the app without a camcorder, o
 ## Status
 
 Early and in active development. Capture, preview and tape control have been tested with a Sony Digital8 camcorder. Resuming a partial capture is planned. Some camcorders don't report timecode or a tape counter over FireWire, especially when playing analog Hi8 tapes.
+
+## License
+
+[MIT](LICENSE). Uses [DirectShowLib](https://www.nuget.org/packages/DirectShowLib) (LGPL 2.1) as a NuGet package, and calls FFmpeg as a separate program; neither is bundled in this repository.
