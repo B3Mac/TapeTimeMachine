@@ -1,0 +1,490 @@
+﻿<Application x:Class="TapeRescue.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="clr-namespace:TapeRescue.Controls"
+             StartupUri="MainWindow.xaml">
+    <!--
+      Tape Time Machine design tokens, taken from the "Tape Time Machine Capture App" Figma Make design
+      (navy glass, blue accent, spaced monospace captions).
+      Substitutions: Cascadia Mono for DM Mono and Segoe UI Variable for Nexa (neither ships with Windows).
+      The design's 6–12 px type is scaled up about 1.5× so it stays readable on a desktop screen.
+    -->
+    <Application.Resources>
+
+        <!-- Type -->
+        <FontFamily x:Key="F.Ui">Segoe UI Variable Display, Segoe UI</FontFamily>
+        <FontFamily x:Key="F.Mono">Cascadia Mono, Consolas</FontFamily>
+
+        <!-- Text colour -->
+        <SolidColorBrush x:Key="B.Bg" Color="#FF07101F" />
+        <SolidColorBrush x:Key="B.Text" Color="#FFF5F7FB" />
+        <SolidColorBrush x:Key="B.TextStrong" Color="#E6F8FAFF" />
+        <SolidColorBrush x:Key="B.TextSecondary" Color="#87CAD6E8" />
+        <SolidColorBrush x:Key="B.Label" Color="#80C4D3E8" />
+        <SolidColorBrush x:Key="B.TextDim" Color="#61B9CBE2" />
+        <SolidColorBrush x:Key="B.Accent" Color="#FF8FC8FF" />
+        <SolidColorBrush x:Key="B.Dot" Color="#FF79BAFF" />
+        <Color x:Key="C.DotGlow">#FF5BAEFF</Color>
+
+        <!-- Status -->
+        <SolidColorBrush x:Key="B.Green" Color="#FF5FD38D" />
+        <SolidColorBrush x:Key="B.Yellow" Color="#FFFFD36B" />
+        <SolidColorBrush x:Key="B.Red" Color="#FFFF6B80" />
+        <SolidColorBrush x:Key="B.Unlit" Color="#26FFFFFF" />
+
+        <!-- Surfaces -->
+        <LinearGradientBrush x:Key="B.PanelBg" StartPoint="0.3,0" EndPoint="0.7,1">
+            <GradientStop Offset="0" Color="#AD152541" />
+            <GradientStop Offset="1" Color="#85091325" />
+        </LinearGradientBrush>
+        <SolidColorBrush x:Key="B.PanelEdge" Color="#1AFFFFFF" />
+        <LinearGradientBrush x:Key="B.HeaderBg" StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Offset="0" Color="#B814223D" />
+            <GradientStop Offset="1" Color="#940A1528" />
+        </LinearGradientBrush>
+        <SolidColorBrush x:Key="B.FooterBg" Color="#B8070F1D" />
+        <SolidColorBrush x:Key="B.Divider" Color="#14FFFFFF" />
+
+        <LinearGradientBrush x:Key="B.CardBg" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Offset="0" Color="#1AFFFFFF" />
+            <GradientStop Offset="1" Color="#0AFFFFFF" />
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="B.CardEdge" StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Offset="0" Color="#38FFFFFF" />
+            <GradientStop Offset="0.12" Color="#1CFFFFFF" />
+            <GradientStop Offset="1" Color="#1CFFFFFF" />
+        </LinearGradientBrush>
+        <SolidColorBrush x:Key="B.CardEdgeHover" Color="#598FC8FF" />
+        <SolidColorBrush x:Key="B.IconBox" Color="#61071121" />
+        <SolidColorBrush x:Key="B.Well" Color="#47050E1D" />
+        <SolidColorBrush x:Key="B.WellEdge" Color="#17FFFFFF" />
+        <SolidColorBrush x:Key="B.Menu" Color="#F5101C33" />
+
+        <!-- Preview frame -->
+        <SolidColorBrush x:Key="B.FrameBase" Color="#8C08101E" />
+        <LinearGradientBrush x:Key="B.FrameGloss" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Offset="0" Color="#2EFFFFFF" />
+            <GradientStop Offset="0.45" Color="#0DFFFFFF" />
+            <GradientStop Offset="1" Color="#14668EC4" />
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="B.FrameEdge" StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Offset="0" Color="#52FFFFFF" />
+            <GradientStop Offset="0.08" Color="#30FFFFFF" />
+            <GradientStop Offset="1" Color="#24FFFFFF" />
+        </LinearGradientBrush>
+        <SolidColorBrush x:Key="B.Osd" Color="#FFF1F0CF" />
+        <SolidColorBrush x:Key="B.Rec" Color="#FFFF7468" />
+        <SolidColorBrush x:Key="B.RecDot" Color="#FFFF5B4C" />
+
+        <!-- Dock -->
+        <LinearGradientBrush x:Key="B.DockTint" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Offset="0" Color="#C2192537" />
+            <GradientStop Offset="1" Color="#B3080F1C" />
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="B.DockEdge" StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Offset="0" Color="#47FFFFFF" />
+            <GradientStop Offset="0.2" Color="#2EFFFFFF" />
+            <GradientStop Offset="1" Color="#24FFFFFF" />
+        </LinearGradientBrush>
+        <SolidColorBrush x:Key="B.DockButton" Color="#A8E8F0FA" />
+        <LinearGradientBrush x:Key="B.Play" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Offset="0" Color="#FF6DB6FF" />
+            <GradientStop Offset="1" Color="#FF7774F5" />
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="B.Capture" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Offset="0" Color="#FFFF566D" />
+            <GradientStop Offset="1" Color="#FFE83656" />
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="B.ButtonGloss" StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Offset="0" Color="#59FFFFFF" />
+            <GradientStop Offset="0.2" Color="#14FFFFFF" />
+            <GradientStop Offset="1" Color="#0AFFFFFF" />
+        </LinearGradientBrush>
+        <SolidColorBrush x:Key="B.CaptureActive" Color="#B84F121F" />
+        <SolidColorBrush x:Key="B.CaptureActiveText" Color="#FFFF9BA9" />
+        <SolidColorBrush x:Key="B.CaptureActiveEdge" Color="#6BFF6A80" />
+
+        <!-- Storage, meter, post-processing -->
+        <LinearGradientBrush x:Key="B.StorageFill" StartPoint="0,0" EndPoint="1,0">
+            <GradientStop Offset="0" Color="#FF6AAEFF" />
+            <GradientStop Offset="1" Color="#FF9D91FF" />
+        </LinearGradientBrush>
+        <SolidColorBrush x:Key="B.Track" Color="#17FFFFFF" />
+        <SolidColorBrush x:Key="B.Meter" Color="#FF72B7FF" />
+        <SolidColorBrush x:Key="B.MeterHot" Color="#FFAC8FFF" />
+        <SolidColorBrush x:Key="B.Loader" Color="#1468A8FF" />
+        <SolidColorBrush x:Key="B.LoaderText" Color="#FF92CAFF" />
+        <RadialGradientBrush x:Key="B.AiGlow" Center="1,0" GradientOrigin="1,0" RadiusX="0.75" RadiusY="0.75">
+            <GradientStop Offset="0" Color="#2B798EFF" />
+            <GradientStop Offset="1" Color="#00798EFF" />
+        </RadialGradientBrush>
+        <LinearGradientBrush x:Key="B.AiIcon" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Offset="0" Color="#2E75B2FF" />
+            <GradientStop Offset="1" Color="#1A7158FF" />
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="B.AiSend" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Offset="0" Color="#4756A4FF" />
+            <GradientStop Offset="1" Color="#3B7B68FF" />
+        </LinearGradientBrush>
+        <SolidColorBrush x:Key="B.AiSendEdge" Color="#478CC6FF" />
+        <SolidColorBrush x:Key="B.AiQueuedEdge" Color="#7A70BBFF" />
+
+        <!-- Icons on a 24×24 grid (outlined, like the design) -->
+        <Geometry x:Key="Geo.Camcorder">M5,7 H13 A2,2 0 0 1 15,9 V15 A2,2 0 0 1 13,17 H5 A2,2 0 0 1 3,15 V9 A2,2 0 0 1 5,7 Z M15,10 L21,7 V17 L15,14</Geometry>
+        <Geometry x:Key="Geo.Folder">M3,7 H10 L12,9 H21 V18 H3 Z</Geometry>
+        <Geometry x:Key="Geo.FolderPlus">M3,7 H10 L12,9 H21 V18 H3 Z M12,11 V16 M9.5,13.5 H14.5</Geometry>
+        <Geometry x:Key="Geo.External">M15,3 H21 V9 M10,14 L21,3 M18,13 V19 A2,2 0 0 1 16,21 H5 A2,2 0 0 1 3,19 V8 A2,2 0 0 1 5,6 H11</Geometry>
+        <Geometry x:Key="Geo.ChevronDown">M9,10 L12,13 L15,10</Geometry>
+        <Geometry x:Key="Geo.Rewind">M11,7 L4,12 L11,17 Z M20,7 L13,12 L20,17 Z</Geometry>
+        <Geometry x:Key="Geo.Forward">M13,7 L20,12 L13,17 Z M4,7 L11,12 L4,17 Z</Geometry>
+        <Geometry x:Key="Geo.Play">M8,5 L19,12 L8,19 Z</Geometry>
+        <Geometry x:Key="Geo.Plus">M12,6 V18 M6,12 H18</Geometry>
+        <Geometry x:Key="Geo.Chapters">M9,6 H20 M9,12 H20 M9,18 H20 M4.5,6 H4.51 M4.5,12 H4.51 M4.5,18 H4.51</Geometry>
+        <Geometry x:Key="Geo.Film">M5,5 H19 A2,2 0 0 1 21,7 V17 A2,2 0 0 1 19,19 H5 A2,2 0 0 1 3,17 V7 A2,2 0 0 1 5,5 Z M10,9 L15,12 L10,15 Z</Geometry>
+        <Geometry x:Key="Geo.Sparkle">M12,3 L13.2,6.8 L17,8 L13.2,9.2 L12,13 L10.8,9.2 L7,8 L10.8,6.8 Z M18,14 L18.7,16.3 L21,17 L18.7,17.7 L18,20 L17.3,17.7 L15,17 L17.3,16.3 Z</Geometry>
+        <Geometry x:Key="Geo.Check">M6,12.5 L10,16.5 L18,8.5</Geometry>
+        <Geometry x:Key="Geo.Refresh">M3,12 A9,9 0 0 1 18.4,5.6 L21,8 M21,3 V8 H16 M21,12 A9,9 0 0 1 5.6,18.4 L3,16 M3,21 V16 H8</Geometry>
+        <Geometry x:Key="Geo.Warning">M10.3,3.9 L1.8,18 A2,2 0 0 0 3.5,21 H20.5 A2,2 0 0 0 22.2,18 L13.7,3.9 A2,2 0 0 0 10.3,3.9 Z M12,9 V13 M12,17 H12.01</Geometry>
+        <Geometry x:Key="Geo.Minimize">M7,12 H17</Geometry>
+        <Geometry x:Key="Geo.Restore">M8,9 H15 V16 H8 Z M10,9 V7 H17 V14 H15</Geometry>
+        <Geometry x:Key="Geo.Close">M8,8 L16,16 M16,8 L8,16</Geometry>
+        <RectangleGeometry x:Key="Geo.Maximize" Rect="7,7,10,10" RadiusX="1.5" RadiusY="1.5" />
+        <RectangleGeometry x:Key="Geo.Stop" Rect="8,8,8,8" RadiusX="1" RadiusY="1" />
+        <RectangleGeometry x:Key="Geo.StopSmall" Rect="7.5,7.5,9,9" RadiusX="1.5" RadiusY="1.5" />
+        <EllipseGeometry x:Key="Geo.Dot" Center="12,12" RadiusX="5" RadiusY="5" />
+        <GeometryGroup x:Key="Geo.Pause">
+            <RectangleGeometry Rect="7,6,3.4,12" RadiusX="1" RadiusY="1" />
+            <RectangleGeometry Rect="13.6,6,3.4,12" RadiusX="1" RadiusY="1" />
+        </GeometryGroup>
+        <GeometryGroup x:Key="Geo.CheckCircle">
+            <EllipseGeometry Center="12,12" RadiusX="10" RadiusY="10" />
+            <PathGeometry Figures="M8.5,12 L11,14.5 L15.5,9.5" />
+        </GeometryGroup>
+        <GeometryGroup x:Key="Geo.ErrorCircle">
+            <EllipseGeometry Center="12,12" RadiusX="10" RadiusY="10" />
+            <PathGeometry Figures="M15,9 L9,15 M9,9 L15,15" />
+        </GeometryGroup>
+
+        <!-- Text styles -->
+        <Style x:Key="Label" TargetType="c:TrackedText">
+            <Setter Property="FontFamily" Value="{StaticResource F.Mono}" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontWeight" Value="Medium" />
+            <Setter Property="Tracking" Value="0.15" />
+            <Setter Property="Foreground" Value="{StaticResource B.Label}" />
+        </Style>
+        <Style x:Key="SmallLabel" TargetType="c:TrackedText" BasedOn="{StaticResource Label}">
+            <Setter Property="FontSize" Value="10" />
+        </Style>
+        <Style x:Key="MonoNote" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="{StaticResource F.Mono}" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="LineHeight" Value="19" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="Foreground" Value="{StaticResource B.TextSecondary}" />
+        </Style>
+        <Style x:Key="FieldValue" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="15" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{StaticResource B.TextStrong}" />
+            <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+        </Style>
+        <Style x:Key="MonoValue" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="{StaticResource F.Mono}" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="#B3DEE8F6" />
+            <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+        </Style>
+
+        <!-- Surfaces -->
+        <Style x:Key="Card" TargetType="Border">
+            <Setter Property="CornerRadius" Value="14" />
+            <Setter Property="Background" Value="{StaticResource B.CardBg}" />
+            <Setter Property="BorderBrush" Value="{StaticResource B.CardEdge}" />
+            <Setter Property="BorderThickness" Value="1" />
+        </Style>
+        <Style x:Key="IconBox" TargetType="Border">
+            <Setter Property="Width" Value="36" />
+            <Setter Property="Height" Value="36" />
+            <Setter Property="CornerRadius" Value="9" />
+            <Setter Property="Background" Value="{StaticResource B.IconBox}" />
+            <Setter Property="BorderBrush" Value="{StaticResource B.PanelEdge}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="TextElement.Foreground" Value="{StaticResource B.Accent}" />
+        </Style>
+        <Style x:Key="GlowDot" TargetType="Ellipse">
+            <Setter Property="Width" Value="7" />
+            <Setter Property="Height" Value="7" />
+            <Setter Property="Fill" Value="{StaticResource B.Dot}" />
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect ShadowDepth="0" BlurRadius="10" Opacity="0.85" Color="{StaticResource C.DotGlow}" />
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Focus rings: appear instantly -->
+        <Style x:Key="FocusRect">
+            <Setter Property="Control.Template">
+                <Setter.Value>
+                    <ControlTemplate>
+                        <Border Margin="-3" CornerRadius="14" BorderThickness="2" BorderBrush="#E6FFFFFF" />
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="FocusPill">
+            <Setter Property="Control.Template">
+                <Setter.Value>
+                    <ControlTemplate>
+                        <Border Margin="-3" CornerRadius="999" BorderThickness="2" BorderBrush="#E6FFFFFF" />
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- One button template: rounded surface, light lift on hover, a small press-in. -->
+        <ControlTemplate x:Key="T.Button" TargetType="ButtonBase">
+            <Grid x:Name="Root" RenderTransformOrigin="0.5,0.5" Background="Transparent">
+                <Border x:Name="Surface"
+                        Background="{TemplateBinding Background}"
+                        BorderBrush="{TemplateBinding BorderBrush}"
+                        BorderThickness="{TemplateBinding BorderThickness}"
+                        CornerRadius="{Binding Path=(c:Ui.CornerRadius), RelativeSource={RelativeSource TemplatedParent}}" />
+                <Border x:Name="Hover" Background="#FFFFFFFF" Opacity="0"
+                        CornerRadius="{Binding Path=(c:Ui.CornerRadius), RelativeSource={RelativeSource TemplatedParent}}" />
+                <ContentPresenter Margin="{TemplateBinding Padding}"
+                                  HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                  VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                  RecognizesAccessKey="True" />
+            </Grid>
+            <ControlTemplate.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter TargetName="Hover" Property="Opacity" Value="0.08" />
+                </Trigger>
+                <Trigger Property="IsPressed" Value="True">
+                    <Setter TargetName="Hover" Property="Opacity" Value="0.14" />
+                    <Setter TargetName="Root" Property="RenderTransform">
+                        <Setter.Value>
+                            <ScaleTransform ScaleX="0.96" ScaleY="0.96" />
+                        </Setter.Value>
+                    </Setter>
+                </Trigger>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter TargetName="Root" Property="Opacity" Value="0.4" />
+                </Trigger>
+            </ControlTemplate.Triggers>
+        </ControlTemplate>
+
+        <Style x:Key="BaseButton" TargetType="ButtonBase">
+            <Setter Property="Template" Value="{StaticResource T.Button}" />
+            <Setter Property="Foreground" Value="{StaticResource B.Text}" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRect}" />
+        </Style>
+
+        <Style x:Key="FieldButton" TargetType="Button" BasedOn="{StaticResource BaseButton}">
+            <Setter Property="c:Ui.CornerRadius" Value="14" />
+            <Setter Property="Background" Value="{StaticResource B.CardBg}" />
+            <Setter Property="BorderBrush" Value="{StaticResource B.CardEdge}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="MinHeight" Value="72" />
+            <Setter Property="Padding" Value="14,0" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="BorderBrush" Value="{StaticResource B.CardEdgeHover}" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="DockButton" TargetType="Button" BasedOn="{StaticResource BaseButton}">
+            <Setter Property="c:Ui.CornerRadius" Value="11" />
+            <Setter Property="Width" Value="44" />
+            <Setter Property="Height" Value="44" />
+            <Setter Property="Foreground" Value="{StaticResource B.DockButton}" />
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Foreground" Value="#FFFFFFFF" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="PlayButton" TargetType="Button" BasedOn="{StaticResource BaseButton}">
+            <Setter Property="c:Ui.CornerRadius" Value="11" />
+            <Setter Property="Width" Value="44" />
+            <Setter Property="Height" Value="44" />
+            <Setter Property="Foreground" Value="#FFFFFFFF" />
+            <Setter Property="Background" Value="{StaticResource B.Play}" />
+            <Setter Property="BorderBrush" Value="{StaticResource B.ButtonGloss}" />
+            <Setter Property="BorderThickness" Value="1" />
+        </Style>
+
+        <Style x:Key="CaptureButton" TargetType="Button" BasedOn="{StaticResource BaseButton}">
+            <Setter Property="c:Ui.CornerRadius" Value="11" />
+            <Setter Property="Height" Value="44" />
+            <Setter Property="Padding" Value="16,0,20,0" />
+            <Setter Property="FontFamily" Value="{StaticResource F.Mono}" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="#FFFFF6F4" />
+            <Setter Property="Background" Value="{StaticResource B.Capture}" />
+            <Setter Property="BorderBrush" Value="{StaticResource B.ButtonGloss}" />
+            <Setter Property="BorderThickness" Value="1" />
+        </Style>
+        <Style x:Key="CaptureButtonActive" TargetType="Button" BasedOn="{StaticResource CaptureButton}">
+            <Setter Property="Foreground" Value="{StaticResource B.CaptureActiveText}" />
+            <Setter Property="Background" Value="{StaticResource B.CaptureActive}" />
+            <Setter Property="BorderBrush" Value="{StaticResource B.CaptureActiveEdge}" />
+        </Style>
+
+        <Style x:Key="WindowButton" TargetType="Button" BasedOn="{StaticResource BaseButton}">
+            <Setter Property="c:Ui.CornerRadius" Value="10" />
+            <Setter Property="Width" Value="38" />
+            <Setter Property="Height" Value="38" />
+            <Setter Property="Foreground" Value="#8CE0EAF8" />
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Foreground" Value="#FFFFFFFF" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="RemoveButton" TargetType="Button" BasedOn="{StaticResource BaseButton}">
+            <Setter Property="c:Ui.CornerRadius" Value="7" />
+            <Setter Property="Width" Value="30" />
+            <Setter Property="Height" Value="30" />
+            <Setter Property="Foreground" Value="#66DAE6F6" />
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Foreground" Value="#FFFF796F" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="SelectButton" TargetType="Button" BasedOn="{StaticResource BaseButton}">
+            <Setter Property="c:Ui.CornerRadius" Value="0,0,0,13" />
+            <Setter Property="Padding" Value="14,0,10,0" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="FontFamily" Value="{StaticResource F.Mono}" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="#B3E1EBF8" />
+        </Style>
+
+        <Style x:Key="LoaderButton" TargetType="Button" BasedOn="{StaticResource BaseButton}">
+            <Setter Property="c:Ui.CornerRadius" Value="0,0,13,0" />
+            <Setter Property="Padding" Value="14,0" />
+            <Setter Property="FontFamily" Value="{StaticResource F.Mono}" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{StaticResource B.LoaderText}" />
+            <Setter Property="Background" Value="{StaticResource B.Loader}" />
+            <Setter Property="BorderBrush" Value="{StaticResource B.Divider}" />
+            <Setter Property="BorderThickness" Value="1,0,0,0" />
+        </Style>
+
+        <Style x:Key="AiSendButton" TargetType="Button" BasedOn="{StaticResource BaseButton}">
+            <Setter Property="c:Ui.CornerRadius" Value="10" />
+            <Setter Property="Height" Value="42" />
+            <Setter Property="FontFamily" Value="{StaticResource F.Mono}" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="#FFD9ECFF" />
+            <Setter Property="Background" Value="{StaticResource B.AiSend}" />
+            <Setter Property="BorderBrush" Value="{StaticResource B.AiSendEdge}" />
+            <Setter Property="BorderThickness" Value="1" />
+        </Style>
+
+        <Style x:Key="PillButton" TargetType="Button" BasedOn="{StaticResource BaseButton}">
+            <Setter Property="c:Ui.CornerRadius" Value="11" />
+            <Setter Property="Height" Value="40" />
+            <Setter Property="Padding" Value="18,0" />
+            <Setter Property="FontFamily" Value="{StaticResource F.Mono}" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{StaticResource B.TextStrong}" />
+            <Setter Property="Background" Value="{StaticResource B.CardBg}" />
+            <Setter Property="BorderBrush" Value="{StaticResource B.CardEdge}" />
+            <Setter Property="BorderThickness" Value="1" />
+        </Style>
+
+        <Style x:Key="MenuButton" TargetType="Button" BasedOn="{StaticResource BaseButton}">
+            <Setter Property="c:Ui.CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="12,10" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+        </Style>
+
+        <Style x:Key="CircleButton" TargetType="Button" BasedOn="{StaticResource BaseButton}">
+            <Setter Property="c:Ui.CornerRadius" Value="999" />
+            <Setter Property="Width" Value="34" />
+            <Setter Property="Height" Value="34" />
+            <Setter Property="FocusVisualStyle" Value="{StaticResource FocusPill}" />
+        </Style>
+
+        <!-- Borderless text box; the surrounding card draws the field. -->
+        <Style x:Key="BareTextBox" TargetType="TextBox">
+            <Setter Property="Foreground" Value="{StaticResource B.TextStrong}" />
+            <Setter Property="CaretBrush" Value="#FFFFFFFF" />
+            <Setter Property="SelectionBrush" Value="#808FC8FF" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="FontSize" Value="15" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <ScrollViewer x:Name="PART_ContentHost" Focusable="False" VerticalAlignment="Center"
+                                      HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Hidden" />
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Thin scroll bar for the side panels -->
+        <Style TargetType="ScrollBar">
+            <Setter Property="Width" Value="8" />
+            <Setter Property="MinWidth" Value="8" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ScrollBar">
+                        <Track x:Name="PART_Track" IsDirectionReversed="True">
+                            <Track.Thumb>
+                                <Thumb>
+                                    <Thumb.Template>
+                                        <ControlTemplate TargetType="Thumb">
+                                            <Border Margin="2,0" CornerRadius="3" Background="#597CB3FF" />
+                                        </ControlTemplate>
+                                    </Thumb.Template>
+                                </Thumb>
+                            </Track.Thumb>
+                        </Track>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Dark tooltips to match -->
+        <Style TargetType="ToolTip">
+            <Setter Property="Foreground" Value="{StaticResource B.Text}" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToolTip">
+                        <Border Background="{StaticResource B.Menu}" BorderBrush="{StaticResource B.CardEdge}" BorderThickness="1"
+                                CornerRadius="10" Padding="10,6">
+                            <ContentPresenter />
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Application.Resources>
+</Application>

@@ -1,0 +1,805 @@
+﻿<Window x:Class="TapeRescue.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:c="clr-namespace:TapeRescue.Controls"
+        Title="Tape Time Machine"
+        Width="1440" Height="900" MinWidth="1180" MinHeight="720"
+        WindowStartupLocation="CenterScreen"
+        Background="{StaticResource B.Bg}"
+        Foreground="{StaticResource B.Text}"
+        FontFamily="{StaticResource F.Ui}"
+        FontSize="14"
+        UseLayoutRounding="True"
+        PreviewKeyDown="Window_PreviewKeyDown">
+
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="76" ResizeBorderThickness="6" GlassFrameThickness="0,0,0,1"
+                      CornerRadius="0" UseAeroCaptionButtons="False" />
+    </WindowChrome.WindowChrome>
+
+    <Grid x:Name="Root">
+        <!-- Background: navy gradient, three soft glows and two light orbs -->
+        <Rectangle IsHitTestVisible="False">
+            <Rectangle.Fill>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                    <GradientStop Offset="0" Color="#FF0B1730" />
+                    <GradientStop Offset="0.52" Color="#FF07101F" />
+                    <GradientStop Offset="1" Color="#FF0D0B21" />
+                </LinearGradientBrush>
+            </Rectangle.Fill>
+        </Rectangle>
+        <Rectangle IsHitTestVisible="False">
+            <Rectangle.Fill>
+                <RadialGradientBrush Center="0.78,0.08" GradientOrigin="0.78,0.08" RadiusX="0.37" RadiusY="0.58">
+                    <GradientStop Offset="0" Color="#3D467CFF" />
+                    <GradientStop Offset="1" Color="#00467CFF" />
+                </RadialGradientBrush>
+            </Rectangle.Fill>
+        </Rectangle>
+        <Rectangle IsHitTestVisible="False">
+            <Rectangle.Fill>
+                <RadialGradientBrush Center="0.29,0.88" GradientOrigin="0.29,0.88" RadiusX="0.41" RadiusY="0.65">
+                    <GradientStop Offset="0" Color="#2E8E4DFF" />
+                    <GradientStop Offset="1" Color="#008E4DFF" />
+                </RadialGradientBrush>
+            </Rectangle.Fill>
+        </Rectangle>
+        <Rectangle IsHitTestVisible="False">
+            <Rectangle.Fill>
+                <RadialGradientBrush Center="0.52,0.42" GradientOrigin="0.52,0.42" RadiusX="0.35" RadiusY="0.57">
+                    <GradientStop Offset="0" Color="#1437BFFF" />
+                    <GradientStop Offset="1" Color="#0037BFFF" />
+                </RadialGradientBrush>
+            </Rectangle.Fill>
+        </Rectangle>
+        <Ellipse Width="250" Height="250" Margin="0,162,100,0" HorizontalAlignment="Right" VerticalAlignment="Top" IsHitTestVisible="False">
+            <Ellipse.Fill>
+                <RadialGradientBrush Center="0.35,0.3" GradientOrigin="0.35,0.3" RadiusX="0.955" RadiusY="0.955">
+                    <GradientStop Offset="0" Color="#4D9ACEFF" />
+                    <GradientStop Offset="0.45" Color="#1A4856FF" />
+                    <GradientStop Offset="0.7" Color="#004856FF" />
+                </RadialGradientBrush>
+            </Ellipse.Fill>
+        </Ellipse>
+        <Ellipse Width="310" Height="310" Margin="259,0,0,45" HorizontalAlignment="Left" VerticalAlignment="Bottom" IsHitTestVisible="False">
+            <Ellipse.Fill>
+                <RadialGradientBrush RadiusX="0.707" RadiusY="0.707">
+                    <GradientStop Offset="0" Color="#248E52FF" />
+                    <GradientStop Offset="0.68" Color="#008E52FF" />
+                </RadialGradientBrush>
+            </Ellipse.Fill>
+        </Ellipse>
+
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="76" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="40" />
+            </Grid.RowDefinitions>
+
+            <!-- Header -->
+            <Border Grid.Row="0" Background="{StaticResource B.HeaderBg}" BorderBrush="{StaticResource B.PanelEdge}" BorderThickness="0,0,0,1">
+                <Grid Margin="28,0,20,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Border Width="38" Height="28" CornerRadius="9" BorderThickness="1" BorderBrush="#3DFFFFFF">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                    <GradientStop Offset="0" Color="#2EFFFFFF" />
+                                    <GradientStop Offset="1" Color="#0DFFFFFF" />
+                                </LinearGradientBrush>
+                            </Border.Background>
+                            <Grid>
+                                <StackPanel Margin="0,0,0,4" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <Ellipse Width="9" Height="9" Margin="0,0,7,0" Stroke="#FF91C9FF" StrokeThickness="1.6" StrokeDashArray="0.8 0.9" />
+                                    <Ellipse Width="9" Height="9" Stroke="#FF91C9FF" StrokeThickness="1.6" StrokeDashArray="0.8 0.9" />
+                                </StackPanel>
+                                <Rectangle Width="18" Height="2" Margin="0,0,0,4" VerticalAlignment="Bottom" Fill="#61FFFFFF" />
+                            </Grid>
+                        </Border>
+                        <c:TrackedText Margin="12,0,0,0" VerticalAlignment="Center" FontSize="15" FontWeight="SemiBold" Tracking="0.1"
+                                       Foreground="#F0FFFFFF" Text="TAPE TIME" />
+                        <c:TrackedText Margin="8,0,0,0" VerticalAlignment="Center" FontSize="15" FontWeight="Bold" Tracking="0.1"
+                                       Foreground="#FF8DC7FF" Text="MACHINE" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center"
+                                AutomationProperties.Name="Video signal" AutomationProperties.LiveSetting="Polite">
+                        <StackPanel Orientation="Horizontal" Height="15" VerticalAlignment="Center">
+                            <StackPanel.Effect>
+                                <DropShadowEffect ShadowDepth="0" BlurRadius="10" Opacity="0.85" Color="{StaticResource C.DotGlow}" />
+                            </StackPanel.Effect>
+                            <Rectangle x:Name="Bar1" Width="3" Height="5" Margin="0,0,2,0" VerticalAlignment="Bottom" Fill="{StaticResource B.Unlit}" />
+                            <Rectangle x:Name="Bar2" Width="3" Height="8" Margin="0,0,2,0" VerticalAlignment="Bottom" Fill="{StaticResource B.Unlit}" />
+                            <Rectangle x:Name="Bar3" Width="3" Height="11" Margin="0,0,2,0" VerticalAlignment="Bottom" Fill="{StaticResource B.Unlit}" />
+                            <Rectangle x:Name="Bar4" Width="3" Height="15" VerticalAlignment="Bottom" Fill="{StaticResource B.Unlit}" />
+                        </StackPanel>
+                        <c:TrackedText Style="{StaticResource Label}" Margin="12,0,0,0" VerticalAlignment="Center" Tracking="0.14"
+                                       Foreground="#85D6E1F2" Text="SIGNAL" />
+                        <c:TrackedText x:Name="SignalWord" Style="{StaticResource Label}" Margin="8,0,0,0" VerticalAlignment="Center"
+                                       Tracking="0.14" FontWeight="Normal" Foreground="#FF8DC7FF" Text="NONE" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center"
+                                WindowChrome.IsHitTestVisibleInChrome="True">
+                        <Button Style="{StaticResource WindowButton}" Click="Minimize_Click" ToolTip="Minimise" AutomationProperties.Name="Minimise">
+                            <c:Icon Data="{StaticResource Geo.Minimize}" Width="20" Height="20" />
+                        </Button>
+                        <Button x:Name="MaximizeButton" Style="{StaticResource WindowButton}" Margin="4,0" Click="Maximize_Click"
+                                ToolTip="Maximise" AutomationProperties.Name="Maximise">
+                            <c:Icon x:Name="MaximizeIcon" Data="{StaticResource Geo.Maximize}" Width="20" Height="20" StrokeThickness="1.6" />
+                        </Button>
+                        <Button Style="{StaticResource WindowButton}" Click="Close_Click" ToolTip="Close" AutomationProperties.Name="Close">
+                            <c:Icon Data="{StaticResource Geo.Close}" Width="20" Height="20" />
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <Grid Grid.Row="1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="320" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="300" />
+                </Grid.ColumnDefinitions>
+
+                <!-- Left: capture setup -->
+                <Border Grid.Column="0" Background="{StaticResource B.PanelBg}" BorderBrush="{StaticResource B.PanelEdge}" BorderThickness="0,0,1,0">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False">
+                        <Grid MinHeight="{Binding ViewportHeight, RelativeSource={RelativeSource AncestorType=ScrollViewer}}">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+
+                            <StackPanel Grid.Row="0">
+                                <Border Padding="32,36,32,26" BorderBrush="{StaticResource B.Divider}" BorderThickness="0,0,0,1">
+                                    <StackPanel>
+                                        <c:TrackedText Style="{StaticResource Label}" Text="CAPTURE SETUP" />
+                                        <TextBlock Style="{StaticResource MonoNote}" Margin="0,14,0,0" MaxWidth="250" HorizontalAlignment="Left"
+                                                   Text="Your tape stays untouched. We'll capture every frame in real time." />
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- 01 Source -->
+                                <StackPanel Margin="26,24,26,0">
+                                    <StackPanel Orientation="Horizontal">
+                                        <c:TrackedText Style="{StaticResource Label}" Foreground="{StaticResource B.Accent}" Text="01" />
+                                        <c:TrackedText Style="{StaticResource Label}" Margin="8,0,0,0" Text="SOURCE" />
+                                    </StackPanel>
+                                    <Border Style="{StaticResource Card}" Margin="0,12,0,0" MinHeight="72" Padding="14,0">
+                                        <Grid VerticalAlignment="Center">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <Border Style="{StaticResource IconBox}">
+                                                <c:Icon Data="{StaticResource Geo.Camcorder}" Width="20" Height="20" />
+                                            </Border>
+                                            <StackPanel Grid.Column="1" Margin="14,0,0,0" VerticalAlignment="Center">
+                                                <c:TrackedText Style="{StaticResource SmallLabel}" Text="CONNECTED CAMCORDER" />
+                                                <TextBlock x:Name="SourceName" Style="{StaticResource FieldValue}" Margin="0,5,0,0" Text="Looking for camcorder" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                    <Grid Margin="3,12,3,0" AutomationProperties.LiveSetting="Polite">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <Ellipse x:Name="StatusDot" Style="{StaticResource GlowDot}" VerticalAlignment="Center" />
+                                        <TextBlock x:Name="StatusText" Grid.Column="1" Margin="8,0,8,0" VerticalAlignment="Center"
+                                                   FontFamily="{StaticResource F.Mono}" FontSize="11" Foreground="#A3CDDAED" TextTrimming="CharacterEllipsis"
+                                                   Text="Looking for your camcorder" />
+                                        <TextBlock Grid.Column="2" VerticalAlignment="Center" FontFamily="{StaticResource F.Mono}" FontSize="11"
+                                                   Foreground="{StaticResource B.TextDim}" Text="FIREWIRE" />
+                                    </Grid>
+                                </StackPanel>
+
+                                <!-- 02 Save to -->
+                                <StackPanel Margin="26,24,26,0">
+                                    <StackPanel Orientation="Horizontal">
+                                        <c:TrackedText Style="{StaticResource Label}" Foreground="{StaticResource B.Accent}" Text="02" />
+                                        <c:TrackedText Style="{StaticResource Label}" Margin="8,0,0,0" Text="SAVE TO" />
+                                    </StackPanel>
+                                    <Button x:Name="FolderButton" Style="{StaticResource FieldButton}" Margin="0,12,0,0" Click="Folder_Click"
+                                            AutomationProperties.Name="Change where captures are saved">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <Border Style="{StaticResource IconBox}">
+                                                <c:Icon Data="{StaticResource Geo.Folder}" Width="20" Height="20" />
+                                            </Border>
+                                            <StackPanel Grid.Column="1" Margin="14,0,8,0" VerticalAlignment="Center">
+                                                <c:TrackedText Style="{StaticResource SmallLabel}" Text="DESTINATION" />
+                                                <TextBlock x:Name="FolderName" Style="{StaticResource FieldValue}" Margin="0,5,0,0" />
+                                            </StackPanel>
+                                            <c:TrackedText Grid.Column="2" Style="{StaticResource SmallLabel}" VerticalAlignment="Center" Tracking="0.12"
+                                                           Foreground="{StaticResource B.Accent}" Text="CHANGE" />
+                                        </Grid>
+                                    </Button>
+                                    <Popup x:Name="FolderMenu" PlacementTarget="{Binding ElementName=FolderButton}" Placement="Bottom"
+                                           VerticalOffset="8" StaysOpen="False" AllowsTransparency="True" PopupAnimation="None">
+                                        <Border Width="{Binding ActualWidth, ElementName=FolderButton}" Padding="6" CornerRadius="14" BorderThickness="1"
+                                                Background="{StaticResource B.Menu}" BorderBrush="{StaticResource B.CardEdge}">
+                                            <StackPanel>
+                                                <Button x:Name="ChooseFolderItem" Style="{StaticResource MenuButton}" Click="ChooseFolder_Click">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <c:Icon Data="{StaticResource Geo.FolderPlus}" Width="18" Height="18" VerticalAlignment="Center"
+                                                                Foreground="{StaticResource B.Accent}" />
+                                                        <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" Text="Choose another folder…" />
+                                                    </StackPanel>
+                                                </Button>
+                                                <Button Style="{StaticResource MenuButton}" Click="OpenFolder_Click">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <c:Icon Data="{StaticResource Geo.External}" Width="18" Height="18" VerticalAlignment="Center"
+                                                                Foreground="{StaticResource B.Accent}" />
+                                                        <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" Text="Open in File Explorer" />
+                                                    </StackPanel>
+                                                </Button>
+                                            </StackPanel>
+                                        </Border>
+                                    </Popup>
+                                </StackPanel>
+
+                                <!-- 03 File name -->
+                                <StackPanel Margin="26,24,26,0">
+                                    <StackPanel Orientation="Horizontal">
+                                        <c:TrackedText Style="{StaticResource Label}" Foreground="{StaticResource B.Accent}" Text="03" />
+                                        <c:TrackedText x:Name="FileNameLabel" Style="{StaticResource Label}" Margin="8,0,0,0" Text="FILE NAME" />
+                                    </StackPanel>
+                                    <Border Height="48" Margin="0,10,0,0" CornerRadius="14" BorderThickness="1" Background="{StaticResource B.CardBg}">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="BorderBrush" Value="{StaticResource B.CardEdge}" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsKeyboardFocused, ElementName=FileNameBox}" Value="True">
+                                                        <Setter Property="BorderBrush" Value="{StaticResource B.CardEdgeHover}" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBox x:Name="FileNameBox" Style="{StaticResource BareTextBox}" Margin="14,0,0,0"
+                                                     AutomationProperties.LabeledBy="{Binding ElementName=FileNameLabel}"
+                                                     TextChanged="FileName_TextChanged" LostKeyboardFocus="FileName_LostFocus" />
+                                            <TextBlock Grid.Column="1" Margin="8,0,14,0" VerticalAlignment="Center" FontFamily="{StaticResource F.Mono}"
+                                                       FontSize="12" Foreground="{StaticResource B.TextDim}" Text=".AVI" />
+                                        </Grid>
+                                    </Border>
+                                </StackPanel>
+
+                                <!-- Storage -->
+                                <Border Style="{StaticResource Card}" Margin="26,28,26,24" Padding="18">
+                                    <StackPanel>
+                                        <Grid>
+                                            <c:TrackedText x:Name="FreeLabel" Style="{StaticResource Label}" VerticalAlignment="Center" Text="FREE SPACE" />
+                                            <TextBlock x:Name="FreeText" HorizontalAlignment="Right" FontFamily="{StaticResource F.Mono}" FontSize="18"
+                                                       FontWeight="Medium" Foreground="#EBF8FAFF" />
+                                        </Grid>
+                                        <c:TrackedText x:Name="HoursText" Style="{StaticResource SmallLabel}" Margin="0,4,0,0" HorizontalAlignment="Right" Text="" />
+                                        <Border Height="4" Margin="0,12,0,0" CornerRadius="2" Background="{StaticResource B.Track}">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition x:Name="UsedColumn" Width="0*" />
+                                                    <ColumnDefinition x:Name="FreeColumn" Width="1*" />
+                                                </Grid.ColumnDefinitions>
+                                                <Border CornerRadius="2" Background="{StaticResource B.StorageFill}">
+                                                    <Border.Effect>
+                                                        <DropShadowEffect ShadowDepth="0" BlurRadius="10" Opacity="0.3" Color="#FF69ABFF" />
+                                                    </Border.Effect>
+                                                </Border>
+                                            </Grid>
+                                        </Border>
+                                        <TextBlock x:Name="StorageNote" Margin="0,10,0,0" FontFamily="{StaticResource F.Mono}" FontSize="10.5"
+                                                   Foreground="#6EC1D0E5" TextWrapping="Wrap" Text="DV AVI · No re-encoding" />
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+
+                            <Border Grid.Row="2" Padding="28,22" BorderBrush="{StaticResource B.Divider}" BorderThickness="0,1,0,0">
+                                <StackPanel>
+                                    <c:TrackedText Style="{StaticResource Label}" Foreground="{StaticResource B.Accent}" Text="BEFORE YOU START" />
+                                    <TextBlock Style="{StaticResource MonoNote}" Margin="0,8,0,0" FontSize="11" LineHeight="18"
+                                               Text="Rewind the tape once for smoother playback and steadier tracking." />
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+                    </ScrollViewer>
+                </Border>
+
+                <!-- Centre: the picture -->
+                <Grid Grid.Column="1" ClipToBounds="True">
+                    <Grid.Background>
+                        <RadialGradientBrush Center="0.5,0.44" GradientOrigin="0.5,0.44" RadiusX="0.6" RadiusY="0.6">
+                            <GradientStop Offset="0" Color="#125792FF" />
+                            <GradientStop Offset="0.8" Color="#005792FF" />
+                        </RadialGradientBrush>
+                    </Grid.Background>
+
+                    <!-- Decorative cables -->
+                    <Grid Width="190" Height="180" Margin="0,20,-70,0" HorizontalAlignment="Right" VerticalAlignment="Top"
+                          Opacity="0.72" IsHitTestVisible="False" RenderTransformOrigin="0.5,0.5">
+                        <Grid.RenderTransform>
+                            <RotateTransform Angle="-35" />
+                        </Grid.RenderTransform>
+                        <Path Stroke="#5C71A4E0" StrokeThickness="3" Data="M161.1,27.4 A93.5,88.5 0 0 0 28.9,27.4 A93.5,88.5 0 0 0 28.9,152.6" />
+                        <Ellipse Width="8" Height="8" Margin="20,21,0,0" HorizontalAlignment="Left" VerticalAlignment="Top" Fill="#FF84C3FF">
+                            <Ellipse.Effect>
+                                <DropShadowEffect ShadowDepth="0" BlurRadius="12" Opacity="0.9" Color="#FF68B2FF" />
+                            </Ellipse.Effect>
+                        </Ellipse>
+                    </Grid>
+                    <Grid Width="120" Height="170" Margin="20,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Bottom"
+                          Opacity="0.72" IsHitTestVisible="False" RenderTransformOrigin="0.5,0.5">
+                        <Grid.RenderTransform>
+                            <RotateTransform Angle="152" />
+                        </Grid.RenderTransform>
+                        <Path Stroke="#5C71A4E0" StrokeThickness="3" Data="M101.4,26 A58.5,83.5 0 0 0 18.6,26 A58.5,83.5 0 0 0 18.6,144" />
+                        <Ellipse Width="8" Height="8" Margin="22,9,0,0" HorizontalAlignment="Left" VerticalAlignment="Top" Fill="#FF84C3FF">
+                            <Ellipse.Effect>
+                                <DropShadowEffect ShadowDepth="0" BlurRadius="12" Opacity="0.9" Color="#FF68B2FF" />
+                            </Ellipse.Effect>
+                        </Ellipse>
+                    </Grid>
+
+                    <!-- Like the design: the frame floats centred, the summary sits at the bottom of the column. -->
+                    <Grid Margin="48,36,48,30">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                    <c:AspectPanel Grid.Row="0" HorizontalInset="10" ExtraHeight="50" MaxScreenWidth="1160">
+                        <Grid>
+                            <!-- Frame shadow, outside the video's subtree so it isn't redrawn every frame -->
+                            <Border Grid.Row="0" Margin="4" CornerRadius="26" Background="#FF07101F">
+                                <Border.Effect>
+                                    <DropShadowEffect ShadowDepth="34" Direction="270" BlurRadius="90" Opacity="0.5" Color="#FF00040F" />
+                                </Border.Effect>
+                            </Border>
+
+                            <!-- Glass frame -->
+                            <Grid Grid.Row="0">
+                                <Border CornerRadius="26" Background="{StaticResource B.FrameBase}" />
+                                <Border CornerRadius="26" Background="{StaticResource B.FrameGloss}" BorderBrush="{StaticResource B.FrameEdge}" BorderThickness="1" />
+                                <Grid Margin="10">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="30" />
+                                        <RowDefinition Height="*" />
+                                    </Grid.RowDefinitions>
+                                    <Grid Grid.Row="0" Margin="10,0">
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <Ellipse Style="{StaticResource GlowDot}" Width="6" Height="6" VerticalAlignment="Center" />
+                                            <c:TrackedText Style="{StaticResource SmallLabel}" Margin="8,0,0,0" Tracking="0.16" Foreground="#7ACDDCF2" Text="LIVE INPUT" />
+                                        </StackPanel>
+                                        <c:TrackedText x:Name="FormatText" Style="{StaticResource SmallLabel}" HorizontalAlignment="Right" VerticalAlignment="Center"
+                                                       Tracking="0.16" Foreground="#7ACDDCF2" Text="DV" />
+                                    </Grid>
+
+                                    <!-- Screen -->
+                                    <Grid Grid.Row="1">
+                                        <Grid x:Name="Frame" SizeChanged="Frame_SizeChanged">
+                                            <Rectangle Fill="#FF0A1120" />
+                                            <Image x:Name="VideoImage" Stretch="Fill" Visibility="Hidden" RenderOptions.BitmapScalingMode="HighQuality" />
+
+                                            <!-- No scanline, vignette or scan-band effects over the picture: the preview
+                                                 shows the tape exactly as it plays, so real tape faults are easy to judge. -->
+
+                                            <StackPanel x:Name="EmptyState" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed">
+                                                <c:Icon Data="{StaticResource Geo.Play}" Width="36" Height="36" HorizontalAlignment="Center"
+                                                        StrokeThickness="1.4" Foreground="{StaticResource B.TextDim}" />
+                                                <TextBlock x:Name="EmptyText" Margin="0,14,0,0" MaxWidth="380" TextAlignment="Center" TextWrapping="Wrap"
+                                                           FontFamily="{StaticResource F.Mono}" FontSize="13" Foreground="{StaticResource B.TextSecondary}"
+                                                           Text="Press Play to see the tape." />
+                                            </StackPanel>
+
+                                            <Border x:Name="MessagePanel" Visibility="Collapsed" MaxWidth="500" Margin="32" Padding="32,28"
+                                                    HorizontalAlignment="Center" VerticalAlignment="Center" CornerRadius="18" BorderThickness="1"
+                                                    Background="#EB0C1830" BorderBrush="{StaticResource B.CardEdge}">
+                                                <StackPanel>
+                                                    <c:Icon x:Name="MessageIcon" Width="38" Height="38" HorizontalAlignment="Center" />
+                                                    <TextBlock x:Name="MessageTitle" Margin="0,16,0,0" FontSize="20" FontWeight="SemiBold" TextAlignment="Center"
+                                                               TextWrapping="Wrap" Foreground="{StaticResource B.Text}" />
+                                                    <TextBlock x:Name="MessageBody" Margin="0,8,0,0" TextAlignment="Center" TextWrapping="Wrap"
+                                                               Foreground="{StaticResource B.TextSecondary}" />
+                                                    <ItemsControl x:Name="MessageSteps" Margin="0,16,0,0" Focusable="False">
+                                                        <ItemsControl.ItemTemplate>
+                                                            <DataTemplate>
+                                                                <TextBlock Margin="0,0,0,6" Text="{Binding}" TextWrapping="Wrap" Foreground="{StaticResource B.TextStrong}" />
+                                                            </DataTemplate>
+                                                        </ItemsControl.ItemTemplate>
+                                                    </ItemsControl>
+                                                    <Button x:Name="RetryButton" Style="{StaticResource PillButton}" Margin="0,18,0,0" HorizontalAlignment="Center"
+                                                            Click="Retry_Click" AutomationProperties.Name="Check again">
+                                                        <c:TrackedText Tracking="0.12" Text="CHECK AGAIN" />
+                                                    </Button>
+                                                    <TextBlock x:Name="MessageDetail" Margin="0,16,0,0" TextAlignment="Center" TextWrapping="Wrap"
+                                                               FontFamily="{StaticResource F.Mono}" FontSize="11" Foreground="{StaticResource B.TextDim}" />
+                                                </StackPanel>
+                                            </Border>
+
+                                            <!-- Camcorder-style on-screen display -->
+                                            <TextBlock x:Name="ModeOsd" Margin="26,22,0,0" HorizontalAlignment="Left" VerticalAlignment="Top" Visibility="Collapsed"
+                                                       FontFamily="{StaticResource F.Mono}" FontSize="15" Foreground="{StaticResource B.Osd}" Text="PLAY">
+                                                <TextBlock.Effect>
+                                                    <DropShadowEffect ShadowDepth="1" Direction="270" BlurRadius="3" Opacity="0.9" Color="#FF000000" />
+                                                </TextBlock.Effect>
+                                            </TextBlock>
+                                            <StackPanel x:Name="RecOsd" Margin="0,22,26,0" HorizontalAlignment="Right" VerticalAlignment="Top"
+                                                        Orientation="Horizontal" Visibility="Collapsed">
+                                                <StackPanel.Effect>
+                                                    <DropShadowEffect ShadowDepth="1" Direction="270" BlurRadius="3" Opacity="0.9" Color="#FF000000" />
+                                                </StackPanel.Effect>
+                                                <Ellipse x:Name="RecDot" Width="8" Height="8" VerticalAlignment="Center" Fill="{StaticResource B.RecDot}" />
+                                                <TextBlock x:Name="RecText" Margin="7,0,0,0" FontFamily="{StaticResource F.Mono}" FontSize="15"
+                                                           Foreground="{StaticResource B.Rec}" Text="REC 00:00:00" />
+                                            </StackPanel>
+
+                                            <c:BackdropGlass x:Name="Toast" Visibility="Collapsed" Margin="18,60,18,0" Padding="14,8,8,8" MaxWidth="600"
+                                                             HorizontalAlignment="Center" VerticalAlignment="Top" CornerRadius="14"
+                                                             Tint="{StaticResource B.DockTint}" EdgeBrush="{StaticResource B.DockEdge}"
+                                                             BackdropTarget="{Binding ElementName=Frame}" AutomationProperties.LiveSetting="Assertive">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <c:Icon x:Name="ToastIcon" Width="18" Height="18" StrokeThickness="2" VerticalAlignment="Center" />
+                                                    <TextBlock x:Name="ToastText" Grid.Column="1" Margin="10,0,12,0" VerticalAlignment="Center" TextWrapping="Wrap"
+                                                               Foreground="{StaticResource B.TextStrong}" />
+                                                    <Button x:Name="ToastAction" Grid.Column="2" Style="{StaticResource PillButton}" Height="34" Padding="14,0"
+                                                            Margin="0,0,4,0" Visibility="Collapsed" Click="ToastAction_Click" />
+                                                    <Button Grid.Column="3" Style="{StaticResource CircleButton}" Click="ToastClose_Click"
+                                                            ToolTip="Dismiss" AutomationProperties.Name="Dismiss message">
+                                                        <c:Icon Data="{StaticResource Geo.Close}" Width="18" Height="18" />
+                                                    </Button>
+                                                </Grid>
+                                            </c:BackdropGlass>
+
+                                            <!-- Transport dock -->
+                                            <c:BackdropGlass x:Name="TransportDock" Margin="16,0,16,25" Padding="6" HorizontalAlignment="Center" VerticalAlignment="Bottom"
+                                                             CornerRadius="17" Tint="{StaticResource B.DockTint}" EdgeBrush="{StaticResource B.DockEdge}"
+                                                             BackdropTarget="{Binding ElementName=Frame}">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <StackPanel x:Name="TransportButtons" Orientation="Horizontal" IsEnabled="False">
+                                                        <Button x:Name="RewindButton" Style="{StaticResource DockButton}" Click="Rewind_Click"
+                                                                ToolTip="Rewind (J)" AutomationProperties.Name="Rewind">
+                                                            <c:Icon Data="{StaticResource Geo.Rewind}" Width="20" Height="20" />
+                                                        </Button>
+                                                        <Button x:Name="PlayButton" Style="{StaticResource PlayButton}" Margin="3,0" Click="PlayPause_Click"
+                                                                ToolTip="Play (Space)" AutomationProperties.Name="Play">
+                                                            <c:Icon x:Name="PlayIcon" Data="{StaticResource Geo.Play}" Width="22" Height="22" />
+                                                        </Button>
+                                                        <Button x:Name="ForwardButton" Style="{StaticResource DockButton}" Click="Forward_Click"
+                                                                ToolTip="Fast-forward (L)" AutomationProperties.Name="Fast-forward">
+                                                            <c:Icon Data="{StaticResource Geo.Forward}" Width="20" Height="20" />
+                                                        </Button>
+                                                        <Rectangle Width="1" Height="26" Margin="6,0" VerticalAlignment="Center" Fill="#1FFFFFFF" />
+                                                        <Button x:Name="StopButton" Style="{StaticResource DockButton}" Click="Stop_Click"
+                                                                ToolTip="Stop the tape (K)" AutomationProperties.Name="Stop the tape">
+                                                            <c:Icon Data="{StaticResource Geo.Stop}" Filled="True" Width="20" Height="20" />
+                                                        </Button>
+                                                    </StackPanel>
+                                                    <TextBlock x:Name="TimecodeText" MinWidth="122" Padding="10,0" VerticalAlignment="Center" FontFamily="{StaticResource F.Mono}" FontSize="14"
+                                                               Foreground="#D1F0F5FC" AutomationProperties.Name="Tape position">
+                                                        <Run x:Name="TimecodeMain" Text="--:--:--" /><Run x:Name="TimecodeFrames" Text=":--" Foreground="{StaticResource B.TextDim}" />
+                                                    </TextBlock>
+                                                    <Button x:Name="CaptureButton" Style="{StaticResource CaptureButton}" Margin="2,0,0,0" IsEnabled="False"
+                                                            Click="Capture_Click" ToolTip="Capture this tape (R)" AutomationProperties.Name="Start capture">
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <c:Icon x:Name="CaptureGlyph" Data="{StaticResource Geo.Dot}" Filled="True" Width="16" Height="16"
+                                                                    VerticalAlignment="Center" />
+                                                            <c:TrackedText x:Name="CaptureLabel" Margin="8,0,0,0" VerticalAlignment="Center" Tracking="0.07" Text="CAPTURE" />
+                                                        </StackPanel>
+                                                    </Button>
+                                                </StackPanel>
+                                            </c:BackdropGlass>
+                                        </Grid>
+                                        <Border CornerRadius="19" BorderThickness="1" BorderBrush="#1AFFFFFF" IsHitTestVisible="False" />
+                                    </Grid>
+                                </Grid>
+                            </Grid>
+
+                        </Grid>
+                    </c:AspectPanel>
+
+                            <!-- What's coming in -->
+                            <Grid Grid.Row="1" Margin="15,18,15,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="150" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Margin="0,0,24,0">
+                                    <c:TrackedText x:Name="SummaryLabel" Style="{StaticResource Label}" Text="NOW PLAYING" />
+                                    <TextBlock x:Name="SummaryName" Style="{StaticResource MonoValue}" Margin="0,6,0,0" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Margin="0,0,32,0">
+                                    <c:TrackedText Style="{StaticResource Label}" Text="VIDEO" />
+                                    <TextBlock x:Name="VideoInfo" Style="{StaticResource MonoValue}" Margin="0,6,0,0" Text="—" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="2" Margin="0,0,32,0">
+                                    <c:TrackedText Style="{StaticResource Label}" Text="AUDIO" />
+                                    <TextBlock x:Name="AudioInfo" Style="{StaticResource MonoValue}" Margin="0,6,0,0" Text="—" />
+                                </StackPanel>
+                                <UniformGrid x:Name="MeterGrid" Grid.Column="3" Rows="1" Columns="14" Height="9" VerticalAlignment="Center"
+                                             AutomationProperties.Name="Audio level" />
+                            </Grid>
+                    </Grid>
+                </Grid>
+
+                <!-- Right: post processing -->
+                <Border Grid.Column="2" Background="{StaticResource B.PanelBg}" BorderBrush="{StaticResource B.PanelEdge}" BorderThickness="1,0,0,0">
+                    <ScrollViewer x:Name="PostScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False">
+                        <StackPanel>
+                            <Border Padding="26,32,26,20" BorderBrush="{StaticResource B.Divider}" BorderThickness="0,0,0,1">
+                                <StackPanel>
+                                    <c:TrackedText Style="{StaticResource Label}" Text="POST PROCESSING" />
+                                    <Grid Margin="0,8,0,0" MinHeight="28" AutomationProperties.LiveSetting="Polite">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock x:Name="PostIntro" Style="{StaticResource MonoNote}" VerticalAlignment="Center" TextWrapping="Wrap"
+                                                   Text="Applied after capture completes." />
+                                        <Button x:Name="CancelPostButton" Grid.Column="1" Style="{StaticResource RemoveButton}" Visibility="Collapsed"
+                                                Margin="8,0,0,0" Click="CancelPost_Click" ToolTip="Stop post-processing"
+                                                AutomationProperties.Name="Stop post-processing">
+                                            <c:Icon Data="{StaticResource Geo.Close}" Width="16" Height="16" />
+                                        </Button>
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- 04 Audio plugins -->
+                            <StackPanel Margin="22,28,22,0">
+                                <StackPanel Orientation="Horizontal">
+                                    <c:TrackedText Style="{StaticResource Label}" Foreground="{StaticResource B.Accent}" Text="04" />
+                                    <c:TrackedText Style="{StaticResource Label}" Margin="8,0,0,0" Text="AUDIO PLUGINS" />
+                                </StackPanel>
+                                <Border Style="{StaticResource Card}" Margin="0,10,0,0">
+                                    <StackPanel>
+                                        <ItemsControl x:Name="PluginList" Focusable="False">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border MinHeight="64" Padding="14,0,8,0" BorderBrush="{StaticResource B.Divider}" BorderThickness="0,0,0,1">
+                                                        <Grid VerticalAlignment="Center">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="Auto" />
+                                                                <ColumnDefinition Width="*" />
+                                                                <ColumnDefinition Width="Auto" />
+                                                            </Grid.ColumnDefinitions>
+                                                            <Ellipse Style="{StaticResource GlowDot}" Width="6" Height="6" VerticalAlignment="Center" />
+                                                            <StackPanel Grid.Column="1" Margin="12,0,8,0" VerticalAlignment="Center">
+                                                                <c:TrackedText Style="{StaticResource SmallLabel}" Tracking="0.12" Foreground="#70B9CCE6" Text="ACTIVE INSERT" />
+                                                                <TextBlock Margin="0,5,0,0" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource B.TextStrong}"
+                                                                           TextTrimming="CharacterEllipsis" Text="{Binding}" />
+                                                            </StackPanel>
+                                                            <Button Grid.Column="2" Style="{StaticResource RemoveButton}" Tag="{Binding}" Click="RemovePlugin_Click"
+                                                                    ToolTip="Remove" AutomationProperties.Name="Remove plugin">
+                                                                <c:Icon Data="{StaticResource Geo.Close}" Width="16" Height="16" />
+                                                            </Button>
+                                                        </Grid>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                        <Border x:Name="PluginEmpty" Padding="14,16" BorderBrush="{StaticResource B.Divider}" BorderThickness="0,0,0,1">
+                                            <TextBlock Style="{StaticResource MonoNote}" FontSize="11" LineHeight="17" Foreground="{StaticResource B.TextDim}"
+                                                       Text="No plugins. Audio stays exactly as recorded." />
+                                        </Border>
+                                        <Grid Height="46">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <Button x:Name="PluginChoiceButton" Style="{StaticResource SelectButton}" Click="PluginChoice_Click"
+                                                    AutomationProperties.Name="Choose an audio plugin to add">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock x:Name="PluginChoiceText" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                                    <c:Icon Grid.Column="1" Data="{StaticResource Geo.ChevronDown}" Width="16" Height="16" VerticalAlignment="Center" />
+                                                </Grid>
+                                            </Button>
+                                            <Button x:Name="AddPluginButton" Grid.Column="1" Style="{StaticResource LoaderButton}" Click="AddPlugin_Click"
+                                                    AutomationProperties.Name="Add audio plugin">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <c:Icon Data="{StaticResource Geo.Plus}" Width="15" Height="15" VerticalAlignment="Center" />
+                                                    <c:TrackedText Margin="4,0,0,0" VerticalAlignment="Center" Tracking="0.08" Text="ADD" />
+                                                </StackPanel>
+                                            </Button>
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+
+                            <!-- 05 AI enhance -->
+                            <StackPanel Margin="22,28,22,0">
+                                <StackPanel Orientation="Horizontal">
+                                    <c:TrackedText Style="{StaticResource Label}" Foreground="{StaticResource B.Accent}" Text="05" />
+                                    <c:TrackedText Style="{StaticResource Label}" Margin="8,0,0,0" Text="AI ENHANCE" />
+                                </StackPanel>
+                                <Grid Margin="0,10,0,0">
+                                    <Border x:Name="AiCardEdge" Style="{StaticResource Card}" />
+                                    <Border CornerRadius="14" Background="{StaticResource B.AiGlow}" IsHitTestVisible="False" />
+                                    <StackPanel Margin="13">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <Border Width="36" Height="36" CornerRadius="10" BorderThickness="1" BorderBrush="#4093C6FF"
+                                                    Background="{StaticResource B.AiIcon}" TextElement.Foreground="#FFA3CEFF">
+                                                <c:Icon Data="{StaticResource Geo.Sparkle}" Width="20" Height="20" />
+                                            </Border>
+                                            <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
+                                                <c:TrackedText Style="{StaticResource SmallLabel}" Tracking="0.12" Foreground="#70B9CCE6" Text="SEND TO" />
+                                                <TextBlock x:Name="TopazName" Margin="0,5,0,0" FontSize="14" FontWeight="SemiBold"
+                                                           Foreground="{StaticResource B.TextStrong}" TextTrimming="CharacterEllipsis" Text="Topaz Video AI" />
+                                            </StackPanel>
+                                        </Grid>
+                                        <Border Margin="0,12,0,0" CornerRadius="9" BorderThickness="1" Background="{StaticResource B.Well}"
+                                                BorderBrush="{StaticResource B.WellEdge}">
+                                            <StackPanel Margin="0,9,0,3">
+                                                <c:TrackedText Margin="10,0,0,0" Style="{StaticResource SmallLabel}" Tracking="0.12" Foreground="#70B9CCE6"
+                                                               Text="ENHANCEMENT MODEL" />
+                                                <Button x:Name="ModelButton" Style="{StaticResource SelectButton}" c:Ui.CornerRadius="0,0,8,8" Height="32"
+                                                        Padding="10,0,8,0" Click="Model_Click" AutomationProperties.Name="Choose the Topaz model">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock x:Name="ModelText" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                                        <c:Icon Grid.Column="1" Data="{StaticResource Geo.ChevronDown}" Width="16" Height="16" VerticalAlignment="Center" />
+                                                    </Grid>
+                                                </Button>
+                                            </StackPanel>
+                                        </Border>
+                                        <Button x:Name="AiSendButton" Style="{StaticResource AiSendButton}" Margin="0,9,0,0" Click="AiSend_Click">
+                                            <StackPanel Orientation="Horizontal">
+                                                <c:Icon x:Name="AiSendIcon" Data="{StaticResource Geo.Sparkle}" Width="15" Height="15" VerticalAlignment="Center" />
+                                                <c:TrackedText x:Name="AiSendText" Margin="8,0,0,0" VerticalAlignment="Center" Tracking="0.09" Text="SEND AFTER CAPTURE" />
+                                            </StackPanel>
+                                        </Button>
+                                        <TextBlock x:Name="AiNote" Margin="2,10,0,0" Visibility="Collapsed" Style="{StaticResource MonoNote}"
+                                                   FontSize="11" LineHeight="17" Foreground="{StaticResource B.TextDim}" />
+                                    </StackPanel>
+                                </Grid>
+                            </StackPanel>
+
+                            <!-- 06 Chapters: find the scenes and save them as chapters -->
+                            <StackPanel Margin="22,28,22,0">
+                                <StackPanel Orientation="Horizontal">
+                                    <c:TrackedText Style="{StaticResource Label}" Foreground="{StaticResource B.Accent}" Text="06" />
+                                    <c:TrackedText Style="{StaticResource Label}" Margin="8,0,0,0" Text="CHAPTERS" />
+                                </StackPanel>
+                                <Border x:Name="ChapterCardEdge" Style="{StaticResource Card}" Margin="0,10,0,0">
+                                    <StackPanel Margin="13">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <Border Width="36" Height="36" CornerRadius="10" BorderThickness="1" BorderBrush="#4093C6FF"
+                                                    Background="{StaticResource B.AiIcon}" TextElement.Foreground="#FFA3CEFF">
+                                                <c:Icon Data="{StaticResource Geo.Chapters}" Width="20" Height="20" />
+                                            </Border>
+                                            <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
+                                                <c:TrackedText Style="{StaticResource SmallLabel}" Tracking="0.12" Foreground="#70B9CCE6" Text="SCENE DETECTION" />
+                                                <TextBlock Margin="0,5,0,0" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource B.TextStrong}"
+                                                           TextTrimming="CharacterEllipsis" Text="A chapter for every scene" />
+                                            </StackPanel>
+                                        </Grid>
+                                        <Button x:Name="ChapterButton" Style="{StaticResource AiSendButton}" Margin="0,12,0,0" Click="ChapterToggle_Click">
+                                            <StackPanel Orientation="Horizontal">
+                                                <c:Icon x:Name="ChapterIcon" Data="{StaticResource Geo.Chapters}" Width="15" Height="15" VerticalAlignment="Center" />
+                                                <c:TrackedText x:Name="ChapterText" Margin="8,0,0,0" VerticalAlignment="Center" Tracking="0.09" Text="ADD AFTER CAPTURE" />
+                                            </StackPanel>
+                                        </Button>
+                                        <TextBlock x:Name="ChapterNote" Margin="2,10,0,0" Style="{StaticResource MonoNote}" TextWrapping="Wrap"
+                                                   FontSize="11" LineHeight="17" Foreground="{StaticResource B.TextDim}" />
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+
+                            <!-- 07 Convert: a ready-to-watch copy -->
+                            <StackPanel Margin="22,28,22,0">
+                                <StackPanel Orientation="Horizontal">
+                                    <c:TrackedText Style="{StaticResource Label}" Foreground="{StaticResource B.Accent}" Text="07" />
+                                    <c:TrackedText Style="{StaticResource Label}" Margin="8,0,0,0" Text="CONVERT" />
+                                </StackPanel>
+                                <Border x:Name="ConvertCardEdge" Style="{StaticResource Card}" Margin="0,10,0,0">
+                                    <StackPanel Margin="13">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <Border Width="36" Height="36" CornerRadius="10" BorderThickness="1" BorderBrush="#4093C6FF"
+                                                    Background="{StaticResource B.AiIcon}" TextElement.Foreground="#FFA3CEFF">
+                                                <c:Icon Data="{StaticResource Geo.Film}" Width="20" Height="20" />
+                                            </Border>
+                                            <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
+                                                <c:TrackedText Style="{StaticResource SmallLabel}" Tracking="0.12" Foreground="#70B9CCE6" Text="READY TO WATCH" />
+                                                <TextBlock Margin="0,5,0,0" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource B.TextStrong}"
+                                                           TextTrimming="CharacterEllipsis" Text="Copy for any device" />
+                                            </StackPanel>
+                                        </Grid>
+                                        <Border Margin="0,12,0,0" CornerRadius="9" BorderThickness="1" Background="{StaticResource B.Well}"
+                                                BorderBrush="{StaticResource B.WellEdge}">
+                                            <StackPanel Margin="0,9,0,3">
+                                                <c:TrackedText Margin="10,0,0,0" Style="{StaticResource SmallLabel}" Tracking="0.12" Foreground="#70B9CCE6"
+                                                               Text="FORMAT" />
+                                                <Button x:Name="PresetButton" Style="{StaticResource SelectButton}" c:Ui.CornerRadius="0,0,8,8" Height="32"
+                                                        Padding="10,0,8,0" Click="Preset_Click" AutomationProperties.Name="Choose the format to convert to">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock x:Name="PresetText" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                                        <c:Icon Grid.Column="1" Data="{StaticResource Geo.ChevronDown}" Width="16" Height="16" VerticalAlignment="Center" />
+                                                    </Grid>
+                                                </Button>
+                                            </StackPanel>
+                                        </Border>
+                                        <Button x:Name="ConvertButton" Style="{StaticResource AiSendButton}" Margin="0,9,0,0" Click="ConvertToggle_Click">
+                                            <StackPanel Orientation="Horizontal">
+                                                <c:Icon x:Name="ConvertIcon" Data="{StaticResource Geo.Film}" Width="15" Height="15" VerticalAlignment="Center" />
+                                                <c:TrackedText x:Name="ConvertText" Margin="8,0,0,0" VerticalAlignment="Center" Tracking="0.09" Text="CONVERT AFTER CAPTURE" />
+                                            </StackPanel>
+                                        </Button>
+                                        <TextBlock x:Name="ConvertNote" Margin="2,10,0,0" Style="{StaticResource MonoNote}" TextWrapping="Wrap"
+                                                   FontSize="11" LineHeight="17" Foreground="{StaticResource B.TextDim}" />
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+
+                            <!-- Run the steps above on a video that was captured earlier -->
+                            <StackPanel Margin="22,28,22,28">
+                                <Button x:Name="ProcessFileButton" Style="{StaticResource PillButton}" HorizontalAlignment="Stretch"
+                                        Content="Process an existing file…" Click="ProcessFile_Click" />
+                                <TextBlock Margin="2,10,0,0" Style="{StaticResource MonoNote}" TextWrapping="Wrap" FontSize="11" LineHeight="17"
+                                           Foreground="{StaticResource B.TextDim}" Text="Runs the steps that are switched on above on a video you already have." />
+                            </StackPanel>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Border>
+            </Grid>
+
+            <!-- Footer -->
+            <Border Grid.Row="2" Background="{StaticResource B.FooterBg}" BorderBrush="#17FFFFFF" BorderThickness="0,1,0,0">
+                <Grid Margin="30,0">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" AutomationProperties.LiveSetting="Polite">
+                        <Ellipse x:Name="FooterDot" Style="{StaticResource GlowDot}" Width="6" Height="6" VerticalAlignment="Center" />
+                        <c:TrackedText x:Name="FooterStatus" Style="{StaticResource Label}" Margin="8,0,0,0" VerticalAlignment="Center"
+                                       Tracking="0.14" Foreground="#94D3E0F1" Text="SEARCHING" />
+                    </StackPanel>
+                    <c:TrackedText x:Name="FooterVersion" Style="{StaticResource Label}" HorizontalAlignment="Right" VerticalAlignment="Center"
+                                   Tracking="0.14" Foreground="#59BBCCE3" Text="TAPE TIME MACHINE" />
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</Window>

@@ -1,0 +1,23 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <PlatformTarget>x64</PlatformTarget>
+    <AssemblyName>TapeTimeMachine</AssemblyName>
+    <AssemblyTitle>Tape Time Machine</AssemblyTitle>
+    <Product>Tape Time Machine</Product>
+    <Version>0.1.0</Version>
+    <!-- NU1701: DirectShowLib targets .NET Framework but is plain COM interop. -->
+    <NoWarn>$(NoWarn);NU1701</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="DirectShowLib" Version="1.0.0" />
+    <PackageReference Include="System.Management" Version="11.0.0" />
+  </ItemGroup>
+
+</Project>
