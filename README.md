@@ -1,4 +1,4 @@
-# Tape Time Machine
+<h1 align="center"><img src="docs/banner.webp" alt="Tape Time Machine" width="800"></h1>
 
 ![Tape Time Machine main screen: capture setup on the left, the live tape picture with play and capture controls in the middle, post-processing on the right](docs/main-screen.png)
 <sub>Shown in demo mode with a generated test picture.</sub>
